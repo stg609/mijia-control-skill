@@ -59,7 +59,9 @@ mijiactl login
 mijiactl config init
 mijiactl config show
 mijiactl devices --json
+mijiactl devices --refresh --json
 mijiactl homes --json
+mijiactl homes --refresh --json
 mijiactl info --model <model> --json
 mijiactl info --model <model> --refresh --json
 mijiactl get --did <did> --prop <name>
@@ -67,8 +69,17 @@ mijiactl set --did <did> --prop <name> --value <value>
 mijiactl action --did <did> --action <name>
 mijiactl action --did <did> --action <name> --arg <value>
 mijiactl scene list --home-id <home_id>
+mijiactl scene list --home-id <home_id> --refresh
 mijiactl scene run --id <scene_id> --home-id <home_id>
 ```
+
+Device, home, and scene snapshots are cached under:
+
+```text
+~/.config/mijiactl/snapshots/
+```
+
+Use `--refresh` only when the user asks to rescan/sync, when inventory changed, or when cached results look wrong.
 
 Capabilities are cached under:
 
@@ -79,6 +90,28 @@ Capabilities are cached under:
 Use `--refresh` when an action or property is missing or after firmware/app updates.
 
 For MIoT actions with inputs, pass one `--arg` per input in the order listed by `mijiactl info --model <model> --json`. Values are parsed like property values, so booleans and numbers can be passed as strings and converted by the CLI.
+
+## Uninstall
+
+Runtime-only uninstall keeps auth/config/cache:
+
+```powershell
+.\scripts\uninstall-mijiactl.ps1
+```
+
+Skill + runtime uninstall:
+
+```powershell
+.\uninstall.ps1
+```
+
+Complete cleanup deletes `auth.json`, policy config, capability cache, and snapshots:
+
+```powershell
+.\uninstall.ps1 -PurgeData
+```
+
+Warn before `-PurgeData` because the user must run `mijiactl login` again after reinstalling.
 
 ## Error Handling
 

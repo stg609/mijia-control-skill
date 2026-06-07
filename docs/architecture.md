@@ -165,6 +165,12 @@ Development installation can still use:
 uv tool install "mijiactl[mijia] @ git+https://github.com/stg609/mijia-control-skill.git"
 ```
 
+Uninstall has matching layers:
+
+- `scripts/uninstall-mijiactl.ps1` removes the runtime executable and user `Path` entry, keeping `~/.config/mijiactl` by default.
+- `uninstall.ps1` attempts to remove the Agent Skill through the installed `skills` CLI and then removes the runtime.
+- `uninstall.ps1 -PurgeData` also removes `~/.config/mijiactl`, including auth, policy, capability cache, and snapshot cache.
+
 ## Why Actions Matter
 
 Many MIoT devices expose both properties and actions. A washer can have an `on` or standby-like property, but starting a washing program is an action such as `start-wash`. The Skill explicitly tells agents not to treat `set on=true` as equivalent to starting an appliance program.

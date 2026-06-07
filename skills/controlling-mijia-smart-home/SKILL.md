@@ -23,6 +23,8 @@ mijiactl setup
 
 Do not read or generate auth files manually. `mijiactl login` is the only supported authorization flow.
 
+If the user asks to uninstall, remove, clean up, or stop using this Skill/runtime, read `references/setup.md` and offer the uninstall commands. Explain that normal uninstall keeps auth/config/cache, while `-PurgeData` deletes local auth, policy, capability cache, and snapshot cache.
+
 ## Required Flow
 
 1. Run `mijiactl setup` or `mijiactl doctor` when setup, login, dependency, or policy state is unknown.

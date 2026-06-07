@@ -65,9 +65,39 @@ mijiactl scene list --home-id <home_id> --refresh
 
 - If `mijiactl` is missing, ask the user to approve runtime installation from GitHub Releases.
 - If the user asks how to update, rerun `npx skills add ... --skill controlling-mijia-smart-home` for the Skill and rerun `scripts/install-mijiactl.ps1` for the runtime.
+- If the user asks how to uninstall, use `uninstall.ps1` for Skill + runtime, or `scripts/uninstall-mijiactl.ps1` for runtime only.
 - If the user asks what is installed, run `mijiactl version`.
 - If `mijiaAPI` is missing, reinstall with the `[mijia]` extra.
 - If auth is missing or expired, run `mijiactl login` and wait for the user to scan the QR code.
 - If policy config is missing, run `mijiactl config init`.
 - If device capability lookup fails, retry `mijiactl info --model <model> --refresh --json` once before reporting the failure.
 - If device, home, room, or scene inventory looks stale, refresh the relevant snapshot instead of rerunning every discovery command repeatedly.
+
+## Uninstall and Cleanup
+
+Runtime-only uninstall keeps auth, policy, and cache data:
+
+```powershell
+Invoke-RestMethod https://raw.githubusercontent.com/stg609/mijia-control-skill/master/scripts/uninstall-mijiactl.ps1 | Invoke-Expression
+```
+
+Skill + runtime uninstall:
+
+```powershell
+Invoke-RestMethod https://raw.githubusercontent.com/stg609/mijia-control-skill/master/uninstall.ps1 | Invoke-Expression
+```
+
+Complete cleanup deletes local auth, policy, capability cache, and snapshot cache:
+
+```powershell
+& ([ScriptBlock]::Create((Invoke-RestMethod https://raw.githubusercontent.com/stg609/mijia-control-skill/master/uninstall.ps1))) -PurgeData
+```
+
+Warn the user before `-PurgeData`: reinstalling after this requires `mijiactl login` and QR authorization again.
+
+Manual cleanup paths:
+
+- `~/.mijiactl/bin/mijiactl.exe`
+- `~/.mijiactl`
+- `~/.config/mijiactl`
+- `controlling-mijia-smart-home` in each agent's skills directory, if the `skills` CLI cannot remove it automatically.

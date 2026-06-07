@@ -146,6 +146,43 @@ uv tool upgrade mijiactl
 
 Auth and policy files are stored under `~/.config/mijiactl` and are not removed by updates.
 
+## Uninstalling
+
+Use the runtime-only uninstaller when you want to remove `mijiactl.exe` but keep login, policy, and cache data for a future reinstall:
+
+```powershell
+Invoke-RestMethod https://raw.githubusercontent.com/stg609/mijia-control-skill/master/scripts/uninstall-mijiactl.ps1 | Invoke-Expression
+```
+
+Use the repo-level uninstaller to remove both the Agent Skill and runtime. It tries `npx skills remove` first, then `npx skills uninstall`, and prints manual cleanup guidance if the installed `skills` CLI does not support either command:
+
+```powershell
+Invoke-RestMethod https://raw.githubusercontent.com/stg609/mijia-control-skill/master/uninstall.ps1 | Invoke-Expression
+```
+
+For a complete local cleanup, including `auth.json`, policy config, capability cache, and device/home/scene snapshots:
+
+```powershell
+& ([ScriptBlock]::Create((Invoke-RestMethod https://raw.githubusercontent.com/stg609/mijia-control-skill/master/uninstall.ps1))) -PurgeData
+```
+
+Manual cleanup paths:
+
+- Runtime executable: `~/.mijiactl/bin/mijiactl.exe`
+- Runtime install directory: `~/.mijiactl`
+- Auth, policy, capability cache, and snapshots: `~/.config/mijiactl`
+- Agent Skill: remove `controlling-mijia-smart-home` from each agent's skills directory if the `skills` CLI cannot remove it automatically.
+
+Use `-PurgeData` only when you no longer want this computer to control Mijia through the saved local authorization. Reinstalling after `-PurgeData` requires `mijiactl login` and QR authorization again.
+
+From a local checkout, the equivalent commands are:
+
+```powershell
+.\scripts\uninstall-mijiactl.ps1
+.\uninstall.ps1
+.\uninstall.ps1 -PurgeData
+```
+
 Every command returns:
 
 ```json

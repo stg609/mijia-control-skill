@@ -146,6 +146,43 @@ uv tool upgrade mijiactl
 
 授权和策略文件保存在 `~/.config/mijiactl`，更新不会删除这些文件。
 
+## 卸载和清理
+
+如果只想删除 `mijiactl.exe`，但保留登录、策略和缓存，方便以后重新安装，使用 runtime 专用卸载脚本：
+
+```powershell
+Invoke-RestMethod https://raw.githubusercontent.com/stg609/mijia-control-skill/master/scripts/uninstall-mijiactl.ps1 | Invoke-Expression
+```
+
+如果要同时移除 Agent Skill 和 runtime，使用仓库级卸载脚本。它会先尝试 `npx skills remove`，再尝试 `npx skills uninstall`；如果当前 `skills` CLI 不支持自动卸载，会提示手动清理 Skill 目录：
+
+```powershell
+Invoke-RestMethod https://raw.githubusercontent.com/stg609/mijia-control-skill/master/uninstall.ps1 | Invoke-Expression
+```
+
+如果要彻底清理本机所有本项目数据，包括 `auth.json`、策略配置、能力缓存、设备/家庭/场景快照：
+
+```powershell
+& ([ScriptBlock]::Create((Invoke-RestMethod https://raw.githubusercontent.com/stg609/mijia-control-skill/master/uninstall.ps1))) -PurgeData
+```
+
+手动清理路径：
+
+- runtime 可执行文件：`~/.mijiactl/bin/mijiactl.exe`
+- runtime 安装目录：`~/.mijiactl`
+- 授权、策略、能力缓存和快照：`~/.config/mijiactl`
+- Agent Skill：如果 `skills` CLI 不能自动删除，请从各 Agent 的 skills 目录中删除 `controlling-mijia-smart-home`。
+
+只有在你确定这台电脑以后不再使用当前米家授权时，才使用 `-PurgeData`。使用后如果重新安装，需要再次运行 `mijiactl login` 并扫码授权。
+
+如果你已经有本地 checkout，对应命令是：
+
+```powershell
+.\scripts\uninstall-mijiactl.ps1
+.\uninstall.ps1
+.\uninstall.ps1 -PurgeData
+```
+
 所有命令都返回：
 
 ```json

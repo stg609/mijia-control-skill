@@ -33,6 +33,17 @@
     ]
   },
   {
+    "id": "uninstall_and_purge",
+    "prompt": "我以后不想用这个米家 Skill 了，请告诉我怎么卸载并清理授权和缓存。",
+    "expected_behavior": [
+      "Explain the difference between runtime-only uninstall, Skill plus runtime uninstall, and complete cleanup.",
+      "Use scripts/uninstall-mijiactl.ps1 for runtime-only uninstall.",
+      "Use uninstall.ps1 for Skill plus runtime uninstall.",
+      "Use uninstall.ps1 -PurgeData only after warning that auth.json, config, capabilities, and snapshots will be deleted.",
+      "Do not read or print auth.json before uninstalling."
+    ]
+  },
+  {
     "id": "safe_light_control",
     "prompt": "打开主卧灯带。",
     "expected_behavior": [

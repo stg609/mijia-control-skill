@@ -16,6 +16,7 @@ def export_skill_package(output_dir: Path) -> dict[str, Any]:
     shutil.copytree(CANONICAL_SKILL_DIR, output_dir)
     _copy(PROJECT_ROOT / "README.md", output_dir / "README.md")
     _copy(PROJECT_ROOT / "README.zh-CN.md", output_dir / "README.zh-CN.md")
+    _copy(PROJECT_ROOT / "uninstall.ps1", output_dir / "uninstall.ps1")
 
     return {
         "skill": SKILL_NAME,

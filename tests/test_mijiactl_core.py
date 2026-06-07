@@ -651,6 +651,9 @@ class PackageSkillTests(unittest.TestCase):
         self.assertTrue((skill_dir / "SKILL.md").exists())
         self.assertTrue((skill_dir / "references" / "setup.md").exists())
         self.assertTrue((skill_dir / "references" / "safety.md").exists())
+        self.assertTrue((skill_dir / "uninstall.ps1").exists())
+        self.assertTrue(Path("uninstall.ps1").exists())
+        self.assertTrue((Path("scripts") / "uninstall-mijiactl.ps1").exists())
 
     def test_repo_contains_maintainer_evals_for_agent_regression(self):
         evals_file = Path("evals") / "evals.json"
@@ -660,6 +663,7 @@ class PackageSkillTests(unittest.TestCase):
         self.assertGreaterEqual(len(payload), 5)
         self.assertTrue(any(item["id"] == "washer_start_action" for item in payload))
         self.assertTrue(any(item["id"] == "first_time_windows_setup" for item in payload))
+        self.assertTrue(any(item["id"] == "uninstall_and_purge" for item in payload))
 
     def test_export_skill_package_creates_distributable_files(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -672,6 +676,7 @@ class PackageSkillTests(unittest.TestCase):
             self.assertTrue((target / "references" / "setup.md").exists())
             self.assertTrue((target / "references" / "safety.md").exists())
             self.assertTrue((target / "install.ps1").exists())
+            self.assertTrue((target / "uninstall.ps1").exists())
             self.assertTrue((target / "README.zh-CN.md").exists())
 
 
