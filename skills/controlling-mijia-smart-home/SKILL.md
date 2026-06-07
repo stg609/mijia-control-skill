@@ -12,7 +12,7 @@ Use `mijiactl` for every device operation. Do not call `mijiaAPI` directly, do n
 If `mijiactl` is not available, read `references/setup.md` and tell the user to install the runtime:
 
 ```powershell
-uv tool install "mijiactl[mijia] @ git+https://github.com/stg609/mijia-control-skill.git"
+irm https://raw.githubusercontent.com/stg609/mijia-control-skill/main/scripts/install-mijiactl.ps1 | iex
 ```
 
 Then run:

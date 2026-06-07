@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  windows-exe:
+    name: Build Windows executable
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Test
+        run: uv run --no-project python -m unittest discover -s tests
+
+      - name: Build Python distributions
+        run: uv build
+
+      - name: Build mijiactl.exe
+        run: .\scripts\build-release.ps1
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/release/mijiactl-windows-x64.exe
+            dist/mijiactl-*.whl
+            dist/mijiactl-*.tar.gz

@@ -16,16 +16,22 @@ The split is intentional. The Skill teaches agents when and how to act; `mijiact
 Install the Agent Skill:
 
 ```powershell
-npx skills add stg609/mijia-control-skill --skill controlling-mijia-smart-home -g -y
+npx skills add stg609/mijia-control-skill --skill controlling-mijia-smart-home -g --agent claude-code openclaw cline codex cursor github-copilot kiro-cli lingma opencode qwen-code trae-cn windsurf -y
 ```
 
-Install and initialize the runtime:
+Install the latest `mijiactl.exe` from GitHub Releases, then initialize:
 
 ```powershell
-uv tool install "mijiactl[mijia] @ git+https://github.com/stg609/mijia-control-skill.git"; mijiactl setup; mijiactl login; mijiactl config init
+irm https://raw.githubusercontent.com/stg609/mijia-control-skill/main/scripts/install-mijiactl.ps1 | iex; mijiactl setup; mijiactl login; mijiactl config init
 ```
 
 `mijiactl login` prints a QR code. Scan it with the Mijia app. Auth is stored at `~/.config/mijiactl/auth.json`; command output never prints token values.
+
+The command above is a global install. It explicitly targets the agents that support global installation:
+
+`Claude Code`, `OpenClaw`, `Cline`, `Codex`, `Cursor`, `GitHub Copilot`, `Kiro CLI`, `Lingma`, `OpenCode`, `Qwen Code`, `Trae CN`, and `Windsurf`.
+
+PromptScript is intentionally not in the default global target list because the current `skills` CLI reports `PromptScript does not support global skill installation`.
 
 ## Examples
 
@@ -125,7 +131,7 @@ By default, high-risk categories include locks, cameras, doorbells, scene runs, 
 
 ## Bootstrap Alternative
 
-For users who prefer one PowerShell command, the bootstrap script installs both the Skill and `mijiactl`. Inspect the script first if you do not pipe remote scripts directly into PowerShell:
+For users who prefer one PowerShell command, the bootstrap script installs both the Skill and the latest Release build of `mijiactl.exe`. Inspect the script first if you do not pipe remote scripts directly into PowerShell:
 
 ```powershell
 irm https://raw.githubusercontent.com/stg609/mijia-control-skill/main/install.ps1 | iex
@@ -134,15 +140,25 @@ irm https://raw.githubusercontent.com/stg609/mijia-control-skill/main/install.ps
 Add `-Login` if running the script from a local checkout:
 
 ```powershell
-.\install.ps1 -RepoUrl "git+https://github.com/stg609/mijia-control-skill.git" -Login
+.\install.ps1 -Login
 ```
+
+Use `-Agents` to override the default global target list from the bootstrap script. Use `-UseSourceRuntime` only for development installs from source.
+
+## Runtime Distribution
+
+End users do not need to copy this repository into their skills directory. The intended distribution is:
+
+- Agent instructions: installed from `skills/controlling-mijia-smart-home` by `npx skills add`.
+- Runtime: `mijiactl-windows-x64.exe` downloaded from GitHub Releases into `~/.mijiactl/bin`.
+- Development fallback: `uv tool install "mijiactl[mijia] @ git+https://github.com/stg609/mijia-control-skill.git"`.
 
 ## Repository Layout
 
 ```text
 mijiactl/                                Python package for the mijiactl command
+scripts/                                Release install/build helpers
 skills/controlling-mijia-smart-home/     Agent Skill installed by npx skills add
-references/               Compatibility docs pointing to the canonical Skill docs
 evals/                    Maintainer regression prompts for agent behavior
 tests/                    Unit and package tests
 ```
@@ -175,6 +191,7 @@ uv run --no-project --with pyyaml python <path-to-quick_validate.py> skills/cont
 - Run unit tests: `uv run --no-project python -m unittest discover -s tests`.
 - Validate the Skill directory with the target agent's Skill validator.
 - Build the Python package: `uv build`.
+- Build the Windows executable locally with `.\scripts\build-release.ps1`, or push a `v*` tag and let GitHub Actions publish `mijiactl-windows-x64.exe`.
 - Confirm the wheel contains `mijiactl`, `skills/controlling-mijia-smart-home`, `README.md`, `README.zh-CN.md`, and `install.ps1`.
 - Test the documented install path from a clean machine or temporary user profile.
 

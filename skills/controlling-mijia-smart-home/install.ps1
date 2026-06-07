@@ -1,20 +1,28 @@
 param(
-  [string]$RepoUrl = "git+https://github.com/stg609/mijia-control-skill.git",
-  [string]$SkillSource = "stg609/mijia-control-skill",
+  [string]$Repo = "stg609/mijia-control-skill",
+  [string]$InstallDir = "$HOME\.mijiactl\bin",
+  [string[]]$Agents = @("claude-code", "openclaw", "cline", "codex", "cursor", "github-copilot", "kiro-cli", "lingma", "opencode", "qwen-code", "trae-cn", "windsurf"),
+  [switch]$UseSourceRuntime,
   [switch]$Login
 )
 
 $ErrorActionPreference = "Stop"
 
-if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
-  throw "uv is required. Install uv first: https://docs.astral.sh/uv/"
-}
-
 if (Get-Command npx -ErrorAction SilentlyContinue) {
-  npx skills add $SkillSource --skill controlling-mijia-smart-home -g -y
+  $skillArgs = @("skills", "add", $Repo, "--skill", "controlling-mijia-smart-home", "-g", "--agent") + $Agents + @("-y")
+  npx @skillArgs
 }
 
-uv tool install "mijiactl[mijia] @ $RepoUrl"
+if ($UseSourceRuntime) {
+  if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
+    throw "uv is required for source runtime installs. Install uv first: https://docs.astral.sh/uv/"
+  }
+  uv tool install "mijiactl[mijia] @ git+https://github.com/$Repo.git"
+} else {
+  $installer = "https://raw.githubusercontent.com/$Repo/main/scripts/install-mijiactl.ps1"
+  & ([ScriptBlock]::Create((Invoke-RestMethod -Uri $installer))) -Repo $Repo -InstallDir $InstallDir
+}
+
 mijiactl config init
 
 if ($Login) {

@@ -1,31 +1,29 @@
 param(
-  [string]$RepoUrl = "git+https://github.com/stg609/mijia-control-skill.git",
-  [string]$SkillSource = "stg609/mijia-control-skill",
+  [string]$Repo = "stg609/mijia-control-skill",
   [string]$SkillName = "controlling-mijia-smart-home",
+  [string]$InstallDir = "$HOME\.mijiactl\bin",
+  [string[]]$Agents = @("claude-code", "openclaw", "cline", "codex", "cursor", "github-copilot", "kiro-cli", "lingma", "opencode", "qwen-code", "trae-cn", "windsurf"),
+  [switch]$UseSourceRuntime,
   [switch]$Login
 )
 
 $ErrorActionPreference = "Stop"
 
-if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
-  throw "uv is required. Install uv first: https://docs.astral.sh/uv/"
-}
-
 if (-not (Get-Command npx -ErrorAction SilentlyContinue)) {
   throw "npx is required to install the agent Skill. Install Node.js first: https://nodejs.org/"
 }
 
-npx skills add $SkillSource --skill $SkillName -g -y
-uv tool install "mijiactl[mijia] @ $RepoUrl"
+$skillArgs = @("skills", "add", $Repo, "--skill", $SkillName, "-g", "--agent") + $Agents + @("-y")
+npx @skillArgs
 
-$source = Split-Path -Parent $MyInvocation.MyCommand.Path
-$canonical = Join-Path $source "skills\$SkillName"
-
-if (Test-Path $canonical) {
-  $skillRoot = Join-Path $HOME ".codex\skills"
-  $target = Join-Path $skillRoot $SkillName
-  New-Item -ItemType Directory -Force -Path $target | Out-Null
-  Copy-Item -Recurse -Force (Join-Path $canonical "*") $target
+if ($UseSourceRuntime) {
+  if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
+    throw "uv is required for source runtime installs. Install uv first: https://docs.astral.sh/uv/"
+  }
+  uv tool install "mijiactl[mijia] @ git+https://github.com/$Repo.git"
+} else {
+  $installer = "https://raw.githubusercontent.com/$Repo/main/scripts/install-mijiactl.ps1"
+  & ([ScriptBlock]::Create((Invoke-RestMethod -Uri $installer))) -Repo $Repo -InstallDir $InstallDir
 }
 
 mijiactl config init

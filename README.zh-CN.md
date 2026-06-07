@@ -16,16 +16,22 @@
 安装 Agent Skill：
 
 ```powershell
-npx skills add stg609/mijia-control-skill --skill controlling-mijia-smart-home -g -y
+npx skills add stg609/mijia-control-skill --skill controlling-mijia-smart-home -g --agent claude-code openclaw cline codex cursor github-copilot kiro-cli lingma opencode qwen-code trae-cn windsurf -y
 ```
 
-安装并初始化本地 runtime：
+从 GitHub Releases 安装最新 `mijiactl.exe`，然后初始化：
 
 ```powershell
-uv tool install "mijiactl[mijia] @ git+https://github.com/stg609/mijia-control-skill.git"; mijiactl setup; mijiactl login; mijiactl config init
+irm https://raw.githubusercontent.com/stg609/mijia-control-skill/main/scripts/install-mijiactl.ps1 | iex; mijiactl setup; mijiactl login; mijiactl config init
 ```
 
 `mijiactl login` 会在终端显示二维码。请使用米家 App 扫码。授权文件保存到 `~/.config/mijiactl/auth.json`；命令输出不会打印 token 值。
+
+上面的命令就是全局安装。它显式指定支持全局安装的目标：
+
+`Claude Code`、`OpenClaw`、`Cline`、`Codex`、`Cursor`、`GitHub Copilot`、`Kiro CLI`、`Lingma`、`OpenCode`、`Qwen Code`、`Trae CN` 和 `Windsurf`。
+
+PromptScript 不在默认目标列表里，因为当前 `skills` CLI 会返回 `PromptScript does not support global skill installation`。
 
 ## 使用案例
 
@@ -125,7 +131,7 @@ mijiactl config init
 
 ## 一条命令安装
 
-如果你接受远程 PowerShell 脚本，可以使用 bootstrap 脚本同时安装 Skill 和 `mijiactl`。不习惯 `irm | iex` 的用户建议先打开脚本内容检查：
+如果你接受远程 PowerShell 脚本，可以使用 bootstrap 脚本同时安装 Skill 和最新 Release 里的 `mijiactl.exe`。不习惯 `irm | iex` 的用户建议先打开脚本内容检查：
 
 ```powershell
 irm https://raw.githubusercontent.com/stg609/mijia-control-skill/main/install.ps1 | iex
@@ -134,15 +140,25 @@ irm https://raw.githubusercontent.com/stg609/mijia-control-skill/main/install.ps
 从本地 checkout 运行时，可以加 `-Login`：
 
 ```powershell
-.\install.ps1 -RepoUrl "git+https://github.com/stg609/mijia-control-skill.git" -Login
+.\install.ps1 -Login
 ```
+
+从 bootstrap 脚本安装时，可以用 `-Agents` 覆盖默认全局安装目标列表。只有开发源码安装时才需要 `-UseSourceRuntime`。
+
+## Runtime 分发
+
+最终用户不需要把整个仓库复制到 skills 目录。预期分发方式是：
+
+- Agent 指令：由 `npx skills add` 从 `skills/controlling-mijia-smart-home` 安装。
+- Runtime：从 GitHub Releases 下载 `mijiactl-windows-x64.exe` 到 `~/.mijiactl/bin`。
+- 开发备用路径：`uv tool install "mijiactl[mijia] @ git+https://github.com/stg609/mijia-control-skill.git"`。
 
 ## 仓库结构
 
 ```text
 mijiactl/                                提供 mijiactl 命令的 Python 包
+scripts/                                Release 安装和构建脚本
 skills/controlling-mijia-smart-home/     通过 npx skills add 安装的 Agent Skill
-references/               兼容入口，指向 canonical Skill 文档
 evals/                    维护者用于回归检查的 Agent prompts
 tests/                    单元测试和打包测试
 ```
@@ -175,6 +191,7 @@ uv run --no-project --with pyyaml python <path-to-quick_validate.py> skills/cont
 - 运行单元测试：`uv run --no-project python -m unittest discover -s tests`。
 - 用目标 Agent 的 Skill validator 校验 Skill 目录。
 - 构建 Python 包：`uv build`。
+- 本地运行 `.\scripts\build-release.ps1` 构建 Windows 可执行文件，或推送 `v*` tag 让 GitHub Actions 发布 `mijiactl-windows-x64.exe`。
 - 确认 wheel 包含 `mijiactl`、`skills/controlling-mijia-smart-home`、`README.md`、`README.zh-CN.md` 和 `install.ps1`。
 - 在干净机器或临时用户配置下验证 README 的安装路径。
 

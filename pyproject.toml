@@ -25,12 +25,11 @@ force-include = { "skills" = "skills", "README.md" = "README.md", "README.zh-CN.
 [tool.hatch.build.targets.sdist]
 include = [
   "mijiactl",
+  "scripts",
   "skills",
-  "references",
   "tests",
   "README.md",
   "README.zh-CN.md",
-  "SKILL.md",
   "install.ps1",
   "instructions.md",
   "pyproject.toml",

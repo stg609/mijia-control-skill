@@ -457,6 +457,7 @@ class PackageSkillTests(unittest.TestCase):
     def test_repo_contains_npx_skills_compatible_skill_directory(self):
         skill_dir = Path("skills") / "controlling-mijia-smart-home"
 
+        self.assertFalse(Path("SKILL.md").exists())
         self.assertTrue((skill_dir / "SKILL.md").exists())
         self.assertTrue((skill_dir / "references" / "setup.md").exists())
         self.assertTrue((skill_dir / "references" / "safety.md").exists())
