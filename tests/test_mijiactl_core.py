@@ -11,6 +11,7 @@ from mijiactl.cli import run_cli
 from mijiactl.package_skill import export_skill_package
 from mijiactl.miot_spec import fetch_model_spec
 from mijiactl.policy import CommandPolicy, MijiaError
+from mijiactl.snapshots import SnapshotStore
 from mijiactl.values import parse_value
 
 
@@ -210,6 +211,7 @@ class CliTests(unittest.TestCase):
                 ["set", "--did", "1", "--prop", "on", "--value", "true"],
                 client=MijiaClient(api),
                 store=CapabilityStore(Path(tmp)),
+                snapshots=SnapshotStore(Path(tmp) / "snapshots"),
             )
 
             payload = json.loads(output)
@@ -239,12 +241,18 @@ class CliTests(unittest.TestCase):
                 self.run_calls.append((scene_id, home_id))
                 return True
 
-        api = SceneApi()
-        list_output = run_cli(["scene", "list", "--home-id", "home-1"], client=MijiaClient(api))
-        run_output = run_cli(
-            ["scene", "run", "--id", "scene-1", "--home-id", "home-1", "--confirm", "scene:scene-1"],
-            client=MijiaClient(api),
-        )
+        with tempfile.TemporaryDirectory() as tmp:
+            api = SceneApi()
+            list_output = run_cli(
+                ["scene", "list", "--home-id", "home-1"],
+                client=MijiaClient(api),
+                snapshots=SnapshotStore(Path(tmp)),
+            )
+            run_output = run_cli(
+                ["scene", "run", "--id", "scene-1", "--home-id", "home-1", "--confirm", "scene:scene-1"],
+                client=MijiaClient(api),
+                snapshots=SnapshotStore(Path(tmp)),
+            )
 
         self.assertTrue(json.loads(list_output)["ok"])
         self.assertTrue(json.loads(run_output)["ok"])
@@ -267,7 +275,8 @@ class CliTests(unittest.TestCase):
                     }
                 ]
 
-        output = run_cli(["homes", "--json"], client=MijiaClient(HomesApi()))
+        with tempfile.TemporaryDirectory() as tmp:
+            output = run_cli(["homes", "--json"], client=MijiaClient(HomesApi()), snapshots=SnapshotStore(Path(tmp)))
 
         payload = json.loads(output)
         self.assertTrue(payload["ok"])
@@ -296,6 +305,7 @@ class CliTests(unittest.TestCase):
                     ["info", "--model", "fan.model", "--json"],
                     client=MijiaClient(FakeMijiaApi()),
                     store=CapabilityStore(Path(tmp)),
+                    snapshots=SnapshotStore(Path(tmp) / "snapshots"),
                 )
             finally:
                 if old_package is not None:
@@ -330,6 +340,7 @@ class CliTests(unittest.TestCase):
                 ["action", "--did", "1", "--action", "start-wash", "--confirm", "start-wash"],
                 client=client,
                 store=CapabilityStore(Path(tmp)),
+                snapshots=SnapshotStore(Path(tmp) / "snapshots"),
                 policy=CommandPolicy(),
             )
 
@@ -354,6 +365,7 @@ class CliTests(unittest.TestCase):
                 ["action", "--did", "1", "--action", "play-text", "--arg", "我是 codex"],
                 client=MijiaClient(api),
                 store=CapabilityStore(Path(tmp)),
+                snapshots=SnapshotStore(Path(tmp) / "snapshots"),
             )
 
             payload = json.loads(output)
@@ -365,11 +377,143 @@ class CliTests(unittest.TestCase):
             devices=[{"did": "1", "name": "Lamp", "model": "lamp.model", "isOnline": True, "room": "Bedroom"}]
         )
 
-        output = run_cli(["devices", "--json"], client=MijiaClient(api))
+        with tempfile.TemporaryDirectory() as tmp:
+            output = run_cli(["devices", "--json"], client=MijiaClient(api), snapshots=SnapshotStore(Path(tmp)))
 
         payload = json.loads(output)
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["data"]["devices"][0]["name"], "Lamp")
+
+    def test_devices_command_uses_fresh_snapshot_without_refetching(self):
+        class CountingApi(FakeMijiaApi):
+            def __init__(self):
+                super().__init__(devices=[{"did": "1", "name": "Lamp", "model": "lamp.model", "isOnline": True}])
+                self.device_calls = 0
+
+            def get_devices_list(self):
+                self.device_calls += 1
+                return super().get_devices_list()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            api = CountingApi()
+            snapshots = SnapshotStore(Path(tmp), now=lambda: 1000)
+
+            first = run_cli(["devices", "--json"], client=MijiaClient(api), snapshots=snapshots)
+            second = run_cli(["devices", "--json"], client=MijiaClient(api), snapshots=snapshots)
+
+            self.assertTrue(json.loads(first)["ok"])
+            payload = json.loads(second)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(api.device_calls, 1)
+            self.assertTrue(payload["data"]["cache"]["hit"])
+
+    def test_devices_refresh_bypasses_snapshot(self):
+        class CountingApi(FakeMijiaApi):
+            def __init__(self):
+                super().__init__(devices=[{"did": "1", "name": "Lamp", "model": "lamp.model", "isOnline": True}])
+                self.device_calls = 0
+
+            def get_devices_list(self):
+                self.device_calls += 1
+                return super().get_devices_list()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            api = CountingApi()
+            snapshots = SnapshotStore(Path(tmp), now=lambda: 1000)
+
+            run_cli(["devices", "--json"], client=MijiaClient(api), snapshots=snapshots)
+            output = run_cli(["devices", "--refresh", "--json"], client=MijiaClient(api), snapshots=snapshots)
+
+            payload = json.loads(output)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(api.device_calls, 2)
+            self.assertFalse(payload["data"]["cache"]["hit"])
+
+    def test_stale_device_snapshot_refreshes_after_ttl(self):
+        now = 1000
+
+        class CountingApi(FakeMijiaApi):
+            def __init__(self):
+                super().__init__(devices=[{"did": "1", "name": "Lamp", "model": "lamp.model", "isOnline": True}])
+                self.device_calls = 0
+
+            def get_devices_list(self):
+                self.device_calls += 1
+                return super().get_devices_list()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            api = CountingApi()
+            snapshots = SnapshotStore(Path(tmp), ttl_seconds=10, now=lambda: now)
+
+            run_cli(["devices", "--json"], client=MijiaClient(api), snapshots=snapshots)
+            now = 1011
+            output = run_cli(["devices", "--json"], client=MijiaClient(api), snapshots=snapshots)
+
+            payload = json.loads(output)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(api.device_calls, 2)
+            self.assertFalse(payload["data"]["cache"]["hit"])
+
+    def test_control_command_resolves_device_from_snapshot_without_refetching_devices(self):
+        class CountingApi(FakeMijiaApi):
+            def __init__(self):
+                super().__init__(
+                    devices=[{"did": "1", "name": "Lamp", "model": "lamp.model", "isOnline": True}],
+                    device_infos={
+                        "lamp.model": {
+                            "model": "lamp.model",
+                            "properties": [{"name": "on", "siid": 2, "piid": 1}],
+                            "actions": [],
+                        }
+                    },
+                )
+                self.device_calls = 0
+
+            def get_devices_list(self):
+                self.device_calls += 1
+                return super().get_devices_list()
+
+            def get_devices_prop(self, data):
+                return [{"code": 0, "value": True}]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            api = CountingApi()
+            snapshots = SnapshotStore(Path(tmp), now=lambda: 1000)
+            store = CapabilityStore(Path(tmp) / "capabilities")
+
+            run_cli(["devices", "--json"], client=MijiaClient(api), snapshots=snapshots)
+            output = run_cli(["get", "--did", "1", "--prop", "on"], client=MijiaClient(api), store=store, snapshots=snapshots)
+
+            payload = json.loads(output)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(api.device_calls, 1)
+
+    def test_homes_and_scene_list_use_snapshots(self):
+        class CountingApi(FakeMijiaApi):
+            def __init__(self):
+                super().__init__()
+                self.home_calls = 0
+                self.scene_calls = 0
+
+            def get_homes_list(self):
+                self.home_calls += 1
+                return [{"id": "home-1", "name": "Home", "roomlist": []}]
+
+            def get_scenes_list(self, home_id=None):
+                self.scene_calls += 1
+                return [{"scene_id": "scene-1", "name": "Lights off", "home_id": home_id, "enable": True}]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            api = CountingApi()
+            snapshots = SnapshotStore(Path(tmp), now=lambda: 1000)
+
+            run_cli(["homes", "--json"], client=MijiaClient(api), snapshots=snapshots)
+            run_cli(["homes", "--json"], client=MijiaClient(api), snapshots=snapshots)
+            run_cli(["scene", "list", "--home-id", "home-1"], client=MijiaClient(api), snapshots=snapshots)
+            run_cli(["scene", "list", "--home-id", "home-1"], client=MijiaClient(api), snapshots=snapshots)
+
+            self.assertEqual(api.home_calls, 1)
+            self.assertEqual(api.scene_calls, 1)
 
     def test_doctor_reports_auth_presence_without_secret_values(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -408,7 +552,12 @@ class CliTests(unittest.TestCase):
             self.assertNotIn("secret-token", output)
 
     def test_parser_errors_are_returned_as_json(self):
-        output = run_cli(["scene", "run", "--id", "scene-1"], client=MijiaClient(FakeMijiaApi()))
+        with tempfile.TemporaryDirectory() as tmp:
+            output = run_cli(
+                ["scene", "run", "--id", "scene-1"],
+                client=MijiaClient(FakeMijiaApi()),
+                snapshots=SnapshotStore(Path(tmp)),
+            )
 
         payload = json.loads(output)
         self.assertFalse(payload["ok"])
@@ -419,7 +568,12 @@ class CliTests(unittest.TestCase):
             def run_scene(self, scene_id, home_id):
                 raise AssertionError("scene should not run without confirmation")
 
-        output = run_cli(["scene", "run", "--id", "scene-1", "--home-id", "home-1"], client=MijiaClient(SceneApi()))
+        with tempfile.TemporaryDirectory() as tmp:
+            output = run_cli(
+                ["scene", "run", "--id", "scene-1", "--home-id", "home-1"],
+                client=MijiaClient(SceneApi()),
+                snapshots=SnapshotStore(Path(tmp)),
+            )
 
         payload = json.loads(output)
         self.assertFalse(payload["ok"])
@@ -430,7 +584,8 @@ class CliTests(unittest.TestCase):
             def get_devices_list(self):
                 raise ValueError("boom")
 
-        output = run_cli(["devices", "--json"], client=MijiaClient(BrokenApi()))
+        with tempfile.TemporaryDirectory() as tmp:
+            output = run_cli(["devices", "--json"], client=MijiaClient(BrokenApi()), snapshots=SnapshotStore(Path(tmp)))
 
         payload = json.loads(output)
         self.assertFalse(payload["ok"])
@@ -447,6 +602,7 @@ class CliTests(unittest.TestCase):
                 ["info", "--model", "fan.model", "--json"],
                 client=MijiaClient(BrokenInfoApi()),
                 store=CapabilityStore(Path(tmp)),
+                snapshots=SnapshotStore(Path(tmp) / "snapshots"),
             )
 
             payload = json.loads(output)

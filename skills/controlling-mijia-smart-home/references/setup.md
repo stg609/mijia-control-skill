@@ -53,6 +53,14 @@ mijiactl devices --json
 
 `mijiactl setup` and `mijiactl doctor` return JSON with `data.next_steps`. Agents should follow those steps instead of guessing what is missing.
 
+Device, home, and scene snapshots are cached for 3 days. Use refresh only when the user asks to rescan/sync, when a device was renamed/added/removed/moved, or when cached results look wrong:
+
+```powershell
+mijiactl devices --refresh --json
+mijiactl homes --refresh --json
+mijiactl scene list --home-id <home_id> --refresh
+```
+
 ## Agent Recovery
 
 - If `mijiactl` is missing, ask the user to approve runtime installation from GitHub Releases.
@@ -62,3 +70,4 @@ mijiactl devices --json
 - If auth is missing or expired, run `mijiactl login` and wait for the user to scan the QR code.
 - If policy config is missing, run `mijiactl config init`.
 - If device capability lookup fails, retry `mijiactl info --model <model> --refresh --json` once before reporting the failure.
+- If device, home, room, or scene inventory looks stale, refresh the relevant snapshot instead of rerunning every discovery command repeatedly.

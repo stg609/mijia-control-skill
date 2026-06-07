@@ -8,9 +8,10 @@ from typing import Any
 from . import __version__
 from .auth import auth_status
 from .capabilities import CapabilityStore
-from .client import MijiaClient, login_auth
+from .client import Device, MijiaClient, login_auth
 from .config import default_config_dir, default_config_path, load_config, write_default_config
 from .policy import CommandPolicy, MijiaError
+from .snapshots import SnapshotStore
 from .values import parse_value
 
 
@@ -41,8 +42,10 @@ def build_parser() -> argparse.ArgumentParser:
     config_sub.add_parser("show")
     devices = sub.add_parser("devices")
     devices.add_argument("--json", action="store_true")
+    devices.add_argument("--refresh", action="store_true")
     homes = sub.add_parser("homes")
     homes.add_argument("--json", action="store_true")
+    homes.add_argument("--refresh", action="store_true")
 
     info = sub.add_parser("info")
     info.add_argument("--model", required=True)
@@ -69,6 +72,7 @@ def build_parser() -> argparse.ArgumentParser:
     scene_sub = scene.add_subparsers(dest="scene_command", required=True, parser_class=JsonArgumentParser)
     scene_list = scene_sub.add_parser("list")
     scene_list.add_argument("--home-id")
+    scene_list.add_argument("--refresh", action="store_true")
     scene_run = scene_sub.add_parser("run")
     scene_run.add_argument("--id", required=True)
     scene_run.add_argument("--home-id", required=True)
@@ -80,11 +84,13 @@ def run_cli(
     argv: list[str],
     client: MijiaClient | None = None,
     store: CapabilityStore | None = None,
+    snapshots: SnapshotStore | None = None,
     policy: CommandPolicy | None = None,
     auth_path: Any | None = None,
     config_path: Any | None = None,
 ) -> str:
     store = store or CapabilityStore()
+    snapshots = snapshots or SnapshotStore()
     policy = policy or CommandPolicy(load_config(config_path))
 
     try:
@@ -104,19 +110,21 @@ def run_cli(
             return success({"config": {"path": str(config_path or default_config_path()), "data": load_config(config_path)}})
         client = client or MijiaClient(auth_path=auth_path)
         if args.command == "devices":
-            return success({"devices": [device.to_dict() for device in client.devices()]})
+            snapshot = _device_snapshot(client, snapshots, refresh=args.refresh)
+            return success({"devices": snapshot["data"], "cache": snapshot["cache"]})
         if args.command == "homes":
-            return success({"homes": client.homes()})
+            snapshot = snapshots.ensure("homes", client.homes, refresh=args.refresh)
+            return success({"homes": snapshot["data"], "cache": snapshot["cache"]})
         if args.command == "info":
             return success(store.ensure_model(args.model, client, refresh=args.refresh))
         if args.command == "get":
-            device = client.device_by_did(args.did)
+            device = _device_by_did(client, snapshots, args.did)
             policy.ensure_device_can_execute(device)
             store.ensure_model(device.model, client)
             prop = store.resolve_property(device.model, args.prop)
             return success({"value": client.get_property(device.did, prop["siid"], prop["piid"])})
         if args.command == "set":
-            device = client.device_by_did(args.did)
+            device = _device_by_did(client, snapshots, args.did)
             policy.ensure_device_can_execute(device)
             policy.ensure_action_allowed(device, f"set-{args.prop}", args.confirm)
             store.ensure_model(device.model, client)
@@ -124,7 +132,7 @@ def run_cli(
             result = client.set_property(device.did, prop["siid"], prop["piid"], parse_value(args.value))
             return success({"result": result})
         if args.command == "action":
-            device = client.device_by_did(args.did)
+            device = _device_by_did(client, snapshots, args.did)
             policy.ensure_device_can_execute(device)
             policy.ensure_action_allowed(device, args.action, args.confirm)
             store.ensure_model(device.model, client)
@@ -132,7 +140,8 @@ def run_cli(
             result = client.run_action(device.did, action["siid"], action["aiid"], [parse_value(value) for value in args.arg])
             return success({"result": result})
         if args.command == "scene" and args.scene_command == "list":
-            return success({"scenes": client.scenes(args.home_id)})
+            snapshot = snapshots.ensure(_scene_snapshot_key(args.home_id), lambda: client.scenes(args.home_id), refresh=args.refresh)
+            return success({"scenes": snapshot["data"], "cache": snapshot["cache"]})
         if args.command == "scene" and args.scene_command == "run":
             policy.ensure_scene_allowed(args.id, args.home_id, args.confirm)
             return success({"result": client.run_scene(args.id, args.home_id)})
@@ -206,6 +215,23 @@ def _config_status(config_path: Any | None) -> dict[str, Any]:
 
 def _config_path(config_path: Any | None):
     return config_path or default_config_path()
+
+
+def _device_snapshot(client: MijiaClient, snapshots: SnapshotStore, refresh: bool = False) -> dict[str, Any]:
+    return snapshots.ensure("devices", lambda: [device.to_dict() for device in client.devices()], refresh=refresh)
+
+
+def _device_by_did(client: MijiaClient, snapshots: SnapshotStore, did: str) -> Device:
+    snapshot = _device_snapshot(client, snapshots)
+    for item in snapshot["data"]:
+        device = Device.from_dict(item)
+        if device.did == did:
+            return device
+    raise MijiaError("DEVICE_NOT_FOUND", f"No device with did '{did}'. Run `mijiactl devices --refresh --json` if the device list changed.")
+
+
+def _scene_snapshot_key(home_id: str | None) -> str:
+    return f"scenes_{home_id or 'all'}"
 
 
 if __name__ == "__main__":

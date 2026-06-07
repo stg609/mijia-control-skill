@@ -20,6 +20,16 @@ class Device:
     def to_dict(self) -> dict[str, Any]:
         return {"did": self.did, "name": self.name, "model": self.model, "online": self.online, "room": self.room}
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Device":
+        return cls(
+            did=str(data.get("did") or ""),
+            name=str(data.get("name") or data.get("did") or "unknown"),
+            model=str(data.get("model") or ""),
+            online=bool(data.get("online", False)),
+            room=data.get("room"),
+        )
+
 
 class MijiaClient:
     def __init__(self, api: Any | None = None, auth_path: Path | None = None):

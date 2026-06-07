@@ -72,6 +72,21 @@ Responsibilities:
 - Resolve user-facing property/action names such as `switch-status` or `start-wash`.
 - Support refresh when firmware or MIoT metadata changes.
 
+### `SnapshotStore`
+
+File:
+
+```text
+mijiactl/snapshots.py
+```
+
+Responsibilities:
+
+- Cache device, home, and scene snapshots under `~/.config/mijiactl/snapshots/`.
+- Use a default 3-day TTL for low-frequency inventory data.
+- Support explicit refresh through `devices --refresh`, `homes --refresh`, and `scene list --refresh`.
+- Let `get`, `set`, and `action` resolve `did -> model/name/online` from the fresh snapshot instead of rediscovering devices before every control command.
+
 ### `CommandPolicy`
 
 File:
@@ -111,7 +126,7 @@ Typical device control:
 
 1. Agent runs `mijiactl doctor` or `mijiactl setup`.
 2. Agent follows `data.next_steps`.
-3. Agent runs `mijiactl devices --json`.
+3. Agent runs `mijiactl devices --json`; this reads a 3-day local snapshot unless it is missing or stale.
 4. Agent selects exactly one device, or asks the user to choose.
 5. Agent runs `mijiactl info --model <model> --json` if capability data is not cached.
 6. Agent calls `get`, `set`, or `action`.
@@ -121,9 +136,19 @@ Typical device control:
 
 Scene control:
 
-1. Agent runs `mijiactl homes --json`.
-2. Agent runs `mijiactl scene list --home-id <home_id>`.
+1. Agent runs `mijiactl homes --json`; this reads a 3-day local snapshot unless it is missing or stale.
+2. Agent runs `mijiactl scene list --home-id <home_id>`; scene lists are cached per home.
 3. Scene execution requires `--confirm scene:<scene_id>`.
+
+If the user asks to refresh, rescan, sync, or rediscover Mijia inventory, agents use the explicit refresh flags:
+
+```powershell
+mijiactl devices --refresh --json
+mijiactl homes --refresh --json
+mijiactl scene list --home-id <home_id> --refresh
+```
+
+Agents should avoid printing full snapshot or capability JSON unless requested. Large outputs are for internal selection and should be summarized into the matched device, candidates, chosen property/action, or error code.
 
 ## Distribution
 
