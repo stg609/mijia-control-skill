@@ -27,6 +27,12 @@ Invoke-RestMethod https://raw.githubusercontent.com/stg609/mijia-control-skill/m
 
 `mijiactl login` prints a QR code. Scan it with the Mijia app. Auth is stored at `~/.config/mijiactl/auth.json`; command output never prints token values.
 
+Check the installed runtime version:
+
+```powershell
+mijiactl version
+```
+
 The command above is a global install. It explicitly targets the agents that support global installation:
 
 `Claude Code`, `OpenClaw`, `Cline`, `Codex`, `Cursor`, `GitHub Copilot`, `Kiro CLI`, `Lingma`, `OpenCode`, `Qwen Code`, `Trae CN`, and `Windsurf`.
@@ -89,6 +95,7 @@ mijiactl scene run --id <scene_id> --home-id <home_id> --confirm scene:<scene_id
 ## Common Commands
 
 ```powershell
+mijiactl version
 mijiactl doctor
 mijiactl setup
 mijiactl login
@@ -104,6 +111,29 @@ mijiactl scene list --home-id <home_id>
 ```
 
 Use one `--arg` per action input in the same order shown by `mijiactl info --model <model> --json`. Values use the same parser as `set --value`, so `true`, `false`, integers, and floats are converted before calling MIoT.
+
+## Updating
+
+Update the Agent Skill by rerunning the same `skills add` command:
+
+```powershell
+npx skills add stg609/mijia-control-skill --skill controlling-mijia-smart-home -g --agent claude-code openclaw cline codex cursor github-copilot kiro-cli lingma opencode qwen-code trae-cn windsurf -y
+```
+
+Update the `mijiactl` runtime to the latest GitHub Release:
+
+```powershell
+Invoke-RestMethod https://raw.githubusercontent.com/stg609/mijia-control-skill/master/scripts/install-mijiactl.ps1 | Invoke-Expression
+mijiactl version
+```
+
+If you installed from source for development, update with:
+
+```powershell
+uv tool upgrade mijiactl
+```
+
+Auth and policy files are stored under `~/.config/mijiactl` and are not removed by updates.
 
 Every command returns:
 
@@ -171,6 +201,20 @@ End users do not need to copy this repository into their skills directory. The i
 - Agent instructions: installed from `skills/controlling-mijia-smart-home` by `npx skills add`.
 - Runtime: `mijiactl-windows-x64.exe` downloaded from GitHub Releases into `~/.mijiactl/bin`.
 - Development fallback: `uv tool install "mijiactl[mijia] @ git+https://github.com/stg609/mijia-control-skill.git"`.
+
+## Implementation
+
+See [docs/architecture.md](docs/architecture.md) for the runtime design, control flow, safety policy, capability cache, and release packaging.
+
+This project builds on the community around Mijia automation. Thanks to:
+
+- [`Do1e/mijia-api`](https://github.com/Do1e/mijia-api), published as `mijiaAPI`, for the underlying Python Mijia API.
+- [`moneshvenkul/mijia-skills`](https://github.com/moneshvenkul/mijia-skills) for earlier Agent Skill-style Mijia organization.
+- [`ssttkkl/mijia-skill`](https://github.com/ssttkkl/mijia-skill) and the related MIoT action-control article for clarifying why devices such as washers require MIoT actions.
+
+## License
+
+This repository is licensed as `GPL-3.0-or-later`. The direct runtime dependency `mijiaAPI==3.0.5` is listed on PyPI as `GPL-3.0-or-later`, so the project is not MIT-licensed. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Repository Layout
 

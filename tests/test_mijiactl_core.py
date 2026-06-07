@@ -143,6 +143,15 @@ class PolicyTests(unittest.TestCase):
 
 
 class CliTests(unittest.TestCase):
+    def test_version_command_reports_runtime_version_without_auth(self):
+        output = run_cli(["version"])
+
+        payload = json.loads(output)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["data"]["name"], "mijiactl")
+        self.assertRegex(payload["data"]["version"], r"^\d+\.\d+\.\d+$")
+        self.assertIn("config_dir", payload["data"])
+
     def test_setup_guides_first_time_auth(self):
         with tempfile.TemporaryDirectory() as tmp:
             auth_file = Path(tmp) / "auth.json"
@@ -481,6 +490,8 @@ class PackageSkillTests(unittest.TestCase):
         skill_dir = Path("skills") / "controlling-mijia-smart-home"
 
         self.assertFalse(Path("SKILL.md").exists())
+        self.assertTrue(Path("LICENSE").exists())
+        self.assertTrue(Path("THIRD_PARTY_NOTICES.md").exists())
         self.assertTrue((skill_dir / "SKILL.md").exists())
         self.assertTrue((skill_dir / "references" / "setup.md").exists())
         self.assertTrue((skill_dir / "references" / "safety.md").exists())

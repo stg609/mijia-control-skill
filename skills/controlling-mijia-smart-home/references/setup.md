@@ -46,6 +46,7 @@ mijiactl config init
 Verify:
 
 ```powershell
+mijiactl version
 mijiactl doctor
 mijiactl devices --json
 ```
@@ -55,6 +56,8 @@ mijiactl devices --json
 ## Agent Recovery
 
 - If `mijiactl` is missing, ask the user to approve runtime installation from GitHub Releases.
+- If the user asks how to update, rerun `npx skills add ... --skill controlling-mijia-smart-home` for the Skill and rerun `scripts/install-mijiactl.ps1` for the runtime.
+- If the user asks what is installed, run `mijiactl version`.
 - If `mijiaAPI` is missing, reinstall with the `[mijia]` extra.
 - If auth is missing or expired, run `mijiactl login` and wait for the user to scan the QR code.
 - If policy config is missing, run `mijiactl config init`.

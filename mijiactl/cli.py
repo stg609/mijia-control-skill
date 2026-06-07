@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from typing import Any
 
+from . import __version__
 from .auth import auth_status
 from .capabilities import CapabilityStore
 from .client import MijiaClient, login_auth
-from .config import default_config_path, load_config, write_default_config
+from .config import default_config_dir, default_config_path, load_config, write_default_config
 from .policy import CommandPolicy, MijiaError
 from .values import parse_value
 
@@ -31,6 +33,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("doctor")
     sub.add_parser("setup")
+    sub.add_parser("version")
     sub.add_parser("login")
     config = sub.add_parser("config")
     config_sub = config.add_subparsers(dest="config_command", required=True, parser_class=JsonArgumentParser)
@@ -90,6 +93,8 @@ def run_cli(
             return success(_doctor_payload(auth_path, config_path))
         if args.command == "setup":
             return success(_setup_payload(auth_path, config_path))
+        if args.command == "version":
+            return success(_version_payload(auth_path, config_path))
         if args.command == "login":
             return login_auth(auth_path)
         if args.command == "config" and args.config_command == "init":
@@ -139,9 +144,19 @@ def run_cli(
 
 
 def main() -> None:
-    import sys
-
     print(run_cli(sys.argv[1:]))
+
+
+def _version_payload(auth_path: Any | None, config_path: Any | None) -> dict[str, Any]:
+    return {
+        "name": "mijiactl",
+        "version": __version__,
+        "python": sys.version.split()[0],
+        "executable": sys.executable,
+        "config_dir": str(default_config_dir()),
+        "auth_path": str(auth_path or auth_status(auth_path)["path"]),
+        "config_path": str(config_path or default_config_path()),
+    }
 
 
 def _doctor_payload(auth_path: Any | None, config_path: Any | None) -> dict[str, Any]:

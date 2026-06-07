@@ -26,12 +26,13 @@ Do not read or generate auth files manually. `mijiactl login` is the only suppor
 ## Required Flow
 
 1. Run `mijiactl setup` or `mijiactl doctor` when setup, login, dependency, or policy state is unknown.
-2. Follow `data.next_steps` exactly. If auth is missing or expired, run `mijiactl login` and have the user scan the QR code in Mijia.
-3. Run `mijiactl config init` if policy config is missing.
-4. Run `mijiactl devices --json` before selecting a device for property/action control.
-5. Run `mijiactl homes --json` before running scenes.
-6. If the model is new or a property/action is unknown, run `mijiactl info --model <model> --json`.
-7. Use only these commands for control:
+2. Run `mijiactl version` when the user asks what is installed or whether an update succeeded.
+3. Follow `data.next_steps` exactly. If auth is missing or expired, run `mijiactl login` and have the user scan the QR code in Mijia.
+4. Run `mijiactl config init` if policy config is missing.
+5. Run `mijiactl devices --json` before selecting a device for property/action control.
+6. Run `mijiactl homes --json` before running scenes.
+7. If the model is new or a property/action is unknown, run `mijiactl info --model <model> --json`.
+8. Use only these commands for control:
    - `mijiactl get --did <did> --prop <name>`
    - `mijiactl set --did <did> --prop <name> --value <value>`
    - `mijiactl action --did <did> --action <name>`

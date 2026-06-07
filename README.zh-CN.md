@@ -27,6 +27,12 @@ Invoke-RestMethod https://raw.githubusercontent.com/stg609/mijia-control-skill/m
 
 `mijiactl login` 会在终端显示二维码。请使用米家 App 扫码。授权文件保存到 `~/.config/mijiactl/auth.json`；命令输出不会打印 token 值。
 
+检查当前安装的 runtime 版本：
+
+```powershell
+mijiactl version
+```
+
 上面的命令就是全局安装。它显式指定支持全局安装的目标：
 
 `Claude Code`、`OpenClaw`、`Cline`、`Codex`、`Cursor`、`GitHub Copilot`、`Kiro CLI`、`Lingma`、`OpenCode`、`Qwen Code`、`Trae CN` 和 `Windsurf`。
@@ -89,6 +95,7 @@ mijiactl scene run --id <scene_id> --home-id <home_id> --confirm scene:<scene_id
 ## 常用命令
 
 ```powershell
+mijiactl version
 mijiactl doctor
 mijiactl setup
 mijiactl login
@@ -104,6 +111,29 @@ mijiactl scene list --home-id <home_id>
 ```
 
 带输入参数的 action 需要按 `mijiactl info --model <model> --json` 里 `in` 列表的顺序逐个传 `--arg`。参数值使用和 `set --value` 相同的解析逻辑，`true`、`false`、整数和小数会在调用 MIoT 前自动转换。
+
+## 更新
+
+更新 Agent Skill：重新执行同一个 `skills add` 命令即可。
+
+```powershell
+npx skills add stg609/mijia-control-skill --skill controlling-mijia-smart-home -g --agent claude-code openclaw cline codex cursor github-copilot kiro-cli lingma opencode qwen-code trae-cn windsurf -y
+```
+
+更新 `mijiactl` runtime 到最新 GitHub Release：
+
+```powershell
+Invoke-RestMethod https://raw.githubusercontent.com/stg609/mijia-control-skill/master/scripts/install-mijiactl.ps1 | Invoke-Expression
+mijiactl version
+```
+
+如果你是开发模式源码安装，用：
+
+```powershell
+uv tool upgrade mijiactl
+```
+
+授权和策略文件保存在 `~/.config/mijiactl`，更新不会删除这些文件。
 
 所有命令都返回：
 
@@ -171,6 +201,20 @@ Invoke-WebRequest https://raw.githubusercontent.com/stg609/mijia-control-skill/m
 - Agent 指令：由 `npx skills add` 从 `skills/controlling-mijia-smart-home` 安装。
 - Runtime：从 GitHub Releases 下载 `mijiactl-windows-x64.exe` 到 `~/.mijiactl/bin`。
 - 开发备用路径：`uv tool install "mijiactl[mijia] @ git+https://github.com/stg609/mijia-control-skill.git"`。
+
+## 实现原理
+
+运行时设计、控制流程、安全策略、能力缓存和 release 打包方式见 [docs/architecture.md](docs/architecture.md)。
+
+这个项目参考和使用了米家自动化社区的成果，感谢：
+
+- [`Do1e/mijia-api`](https://github.com/Do1e/mijia-api)，即 PyPI 上的 `mijiaAPI`，提供底层 Python 米家 API。
+- [`moneshvenkul/mijia-skills`](https://github.com/moneshvenkul/mijia-skills)，提供了较早的 Agent Skill 风格组织方式参考。
+- [`ssttkkl/mijia-skill`](https://github.com/ssttkkl/mijia-skill) 以及相关 MIoT action 控制文章，说明了洗衣机等复杂设备为什么必须使用 MIoT action。
+
+## License
+
+本仓库使用 `GPL-3.0-or-later`。直接运行时依赖 `mijiaAPI==3.0.5` 在 PyPI 上标注为 `GPL-3.0-or-later`，因此当前项目不适合标为 MIT。详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 ## 仓库结构
 

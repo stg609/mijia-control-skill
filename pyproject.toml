@@ -4,6 +4,13 @@ version = "0.1.2"
 description = "Controlled local CLI runtime for Xiaomi Mijia device control."
 requires-python = ">=3.11"
 dependencies = []
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+classifiers = [
+  "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+]
 
 [project.optional-dependencies]
 mijia = [
@@ -20,14 +27,17 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["mijiactl"]
-force-include = { "skills" = "skills", "README.md" = "README.md", "README.zh-CN.md" = "README.zh-CN.md", "install.ps1" = "install.ps1" }
+force-include = { "skills" = "skills", "docs" = "docs", "README.md" = "README.md", "README.zh-CN.md" = "README.zh-CN.md", "LICENSE" = "LICENSE", "THIRD_PARTY_NOTICES.md" = "THIRD_PARTY_NOTICES.md", "install.ps1" = "install.ps1" }
 
 [tool.hatch.build.targets.sdist]
 include = [
   "mijiactl",
+  "docs",
   "scripts",
   "skills",
   "tests",
+  "LICENSE",
+  "THIRD_PARTY_NOTICES.md",
   "README.md",
   "README.zh-CN.md",
   "install.ps1",
