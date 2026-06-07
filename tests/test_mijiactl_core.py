@@ -655,6 +655,14 @@ class PackageSkillTests(unittest.TestCase):
         self.assertTrue(Path("uninstall.ps1").exists())
         self.assertTrue((Path("scripts") / "uninstall-mijiactl.ps1").exists())
 
+    def test_installer_has_httpclient_fallback_for_release_asset_downloads(self):
+        script = (Path("scripts") / "install-mijiactl.ps1").read_text(encoding="utf-8")
+
+        self.assertIn("-UseBasicParsing", script)
+        self.assertIn("System.Net.Http.HttpClient", script)
+        self.assertIn("Invoke-WebRequest error", script)
+        self.assertIn("HttpClient error", script)
+
     def test_repo_contains_maintainer_evals_for_agent_regression(self):
         evals_file = Path("evals") / "evals.json"
 

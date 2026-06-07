@@ -33,10 +33,44 @@ if (-not $asset) {
 }
 
 $target = Join-Path $InstallDir "mijiactl.exe"
+$downloadError = $null
 try {
-  Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $target
+  Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $target -UseBasicParsing
 } catch {
-  throw "Failed to download '$AssetName'. Download it manually from https://github.com/$Repo/releases/latest and save it as $target. Original error: $($_.Exception.Message)"
+  $downloadError = $_.Exception.Message
+  try {
+    Add-Type -AssemblyName System.Net.Http
+    $client = [System.Net.Http.HttpClient]::new()
+    try {
+      $client.DefaultRequestHeaders.UserAgent.ParseAdd("mijiactl-installer")
+      $bytes = $client.GetByteArrayAsync($asset.browser_download_url).GetAwaiter().GetResult()
+      [System.IO.File]::WriteAllBytes($target, $bytes)
+    } finally {
+      $client.Dispose()
+    }
+  } catch {
+    throw @"
+Failed to download '$AssetName'.
+
+Tried:
+1. Invoke-WebRequest -OutFile
+2. .NET HttpClient byte download
+
+Manual install:
+1. Open https://github.com/$Repo/releases/latest
+2. Download $AssetName
+3. Rename it to mijiactl.exe
+4. Save it as $target
+5. Open a new PowerShell window and run: mijiactl doctor
+
+Invoke-WebRequest error: $downloadError
+HttpClient error: $($_.Exception.Message)
+"@
+  }
+}
+
+if (-not (Test-Path $target) -or (Get-Item $target).Length -eq 0) {
+  throw "Downloaded '$AssetName' but '$target' is missing or empty. Open https://github.com/$Repo/releases/latest and install it manually."
 }
 
 if (-not $NoPathUpdate) {
