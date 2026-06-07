@@ -1,0 +1,68 @@
+---
+name: controlling-mijia-smart-home
+description: Controlled local Xiaomi Mijia smart-home operations through the installable mijiactl CLI. Use this skill whenever the user asks an agent to install, configure, diagnose, list, inspect, or operate Xiaomi/Mijia devices, rooms, homes, scenes, MIoT properties, or MIoT actions, including natural-language requests such as turning on a light, starting an appliance, or running a scene, while keeping auth tokens hidden and respecting safety policy.
+---
+
+# Controlling Mijia Smart Home
+
+Use `mijiactl` for every device operation. Do not call `mijiaAPI` directly, do not compose ad hoc Python snippets, and do not read or print `auth.json`.
+
+## Install Check
+
+If `mijiactl` is not available, read `references/setup.md` and tell the user to install the runtime:
+
+```powershell
+uv tool install "mijiactl[mijia] @ git+https://github.com/stg609/mijia-control-skill.git"
+```
+
+Then run:
+
+```powershell
+mijiactl setup
+```
+
+Do not read or generate auth files manually. `mijiactl login` is the only supported authorization flow.
+
+## Required Flow
+
+1. Run `mijiactl setup` or `mijiactl doctor` when setup, login, dependency, or policy state is unknown.
+2. Follow `data.next_steps` exactly. If auth is missing or expired, run `mijiactl login` and have the user scan the QR code in Mijia.
+3. Run `mijiactl config init` if policy config is missing.
+4. Run `mijiactl devices --json` before selecting a device for property/action control.
+5. Run `mijiactl homes --json` before running scenes.
+6. If the model is new or a property/action is unknown, run `mijiactl info --model <model> --json`.
+7. Use only these commands for control:
+   - `mijiactl get --did <did> --prop <name>`
+   - `mijiactl set --did <did> --prop <name> --value <value>`
+   - `mijiactl action --did <did> --action <name>`
+   - `mijiactl scene list --home-id <home_id>`
+   - `mijiactl scene run --id <scene_id> --home-id <home_id> --confirm <token>`
+
+For natural-language device requests, map the user's wording to exactly one device from `devices --json`, then inspect that device's model with `info` before choosing a property or action. If more than one device plausibly matches, show candidates and ask the user to choose.
+
+For washers and other appliances, do not treat `on=true` as "start". Starting a program requires an MIoT action such as `start-wash`, and usually requires confirmation.
+
+All command output is JSON:
+
+```json
+{"ok": true, "error": null, "data": {}}
+```
+
+or:
+
+```json
+{"ok": false, "error": {"code": "ERROR_CODE", "message": "...", "data": {}}, "data": null}
+```
+
+## Safety Rules
+
+- Treat `ok: false` as authoritative. Branch on `error.code`; do not infer success from partial prose.
+- If a command returns `POLICY_BLOCKED`, stop. Do not suggest bypassing the policy.
+- If a command returns `CONFIRMATION_REQUIRED`, show the confirmation token and wait for explicit approval. Then rerun with `--confirm <token>`.
+- If a command returns `AMBIGUOUS_DEVICE`, show candidates and ask the user to choose. Do not execute against multiple fuzzy matches.
+- If a command returns `DEVICE_OFFLINE`, stop.
+- If a command returns `AUTH_MISSING`, `AUTH_EXPIRED`, or `DEPENDENCY_MISSING`, return to the setup flow in `references/setup.md`.
+- Never expose values from `auth.json`, Xiaomi account cookies, service tokens, `ssecurity`, `deviceId`, or `userId`.
+- Scenes require confirmation by default.
+
+For policy details, read `references/safety.md`.

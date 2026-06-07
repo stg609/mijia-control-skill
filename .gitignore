@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+dist/
+*.egg-info/
+.env
+.env.*
+auth.json
+config.json
+capabilities/
+.mijiactl/
+.mijia-skill/

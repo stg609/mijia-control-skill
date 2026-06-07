@@ -1,0 +1,37 @@
+[project]
+name = "mijiactl"
+version = "0.1.0"
+description = "Controlled local CLI runtime for Xiaomi Mijia device control."
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+mijia = [
+  "mijiaAPI==3.0.5",
+]
+
+[project.scripts]
+mijiactl = "mijiactl.cli:main"
+mijiactl-export-skill = "mijiactl.package_skill:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["mijiactl"]
+force-include = { "skills" = "skills", "README.md" = "README.md", "README.zh-CN.md" = "README.zh-CN.md", "install.ps1" = "install.ps1" }
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "mijiactl",
+  "skills",
+  "references",
+  "tests",
+  "README.md",
+  "README.zh-CN.md",
+  "SKILL.md",
+  "install.ps1",
+  "instructions.md",
+  "pyproject.toml",
+]
