@@ -11,14 +11,23 @@ npx skills add stg609/mijia-control-skill --skill controlling-mijia-smart-home -
 Then install the runtime from GitHub Releases:
 
 ```powershell
-irm https://raw.githubusercontent.com/stg609/mijia-control-skill/main/scripts/install-mijiactl.ps1 | iex
+Invoke-RestMethod https://raw.githubusercontent.com/stg609/mijia-control-skill/master/scripts/install-mijiactl.ps1 | Invoke-Expression
 ```
 
 If the maintainer publishes a dedicated bootstrap script, this one PowerShell command installs both pieces:
 
 ```powershell
-irm https://raw.githubusercontent.com/stg609/mijia-control-skill/main/install.ps1 | iex
+Invoke-RestMethod https://raw.githubusercontent.com/stg609/mijia-control-skill/master/install.ps1 | Invoke-Expression
 ```
+
+If `Invoke-RestMethod` or script piping is blocked, download and run the installer explicitly:
+
+```powershell
+Invoke-WebRequest https://raw.githubusercontent.com/stg609/mijia-control-skill/master/scripts/install-mijiactl.ps1 -OutFile install-mijiactl.ps1
+.\install-mijiactl.ps1
+```
+
+Manual install is also supported: download `mijiactl-windows-x64.exe` from the latest GitHub Release, rename it to `mijiactl.exe`, place it in `~/.mijiactl/bin`, and add that directory to the user `Path`.
 
 The runtime uses `~/.config/mijiactl` for auth/config and installs the executable to `~/.mijiactl/bin` by default.
 

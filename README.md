@@ -22,7 +22,7 @@ npx skills add stg609/mijia-control-skill --skill controlling-mijia-smart-home -
 Install the latest `mijiactl.exe` from GitHub Releases, then initialize:
 
 ```powershell
-irm https://raw.githubusercontent.com/stg609/mijia-control-skill/main/scripts/install-mijiactl.ps1 | iex; mijiactl setup; mijiactl login; mijiactl config init
+Invoke-RestMethod https://raw.githubusercontent.com/stg609/mijia-control-skill/master/scripts/install-mijiactl.ps1 | Invoke-Expression; mijiactl setup; mijiactl login; mijiactl config init
 ```
 
 `mijiactl login` prints a QR code. Scan it with the Mijia app. Auth is stored at `~/.config/mijiactl/auth.json`; command output never prints token values.
@@ -134,7 +134,7 @@ By default, high-risk categories include locks, cameras, doorbells, scene runs, 
 For users who prefer one PowerShell command, the bootstrap script installs both the Skill and the latest Release build of `mijiactl.exe`. Inspect the script first if you do not pipe remote scripts directly into PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/stg609/mijia-control-skill/main/install.ps1 | iex
+Invoke-RestMethod https://raw.githubusercontent.com/stg609/mijia-control-skill/master/install.ps1 | Invoke-Expression
 ```
 
 Add `-Login` if running the script from a local checkout:
@@ -144,6 +144,15 @@ Add `-Login` if running the script from a local checkout:
 ```
 
 Use `-Agents` to override the default global target list from the bootstrap script. Use `-UseSourceRuntime` only for development installs from source.
+
+If your shell does not provide the `irm` alias, use `Invoke-RestMethod` as shown above. If script piping is blocked by policy, download first and run locally:
+
+```powershell
+Invoke-WebRequest https://raw.githubusercontent.com/stg609/mijia-control-skill/master/scripts/install-mijiactl.ps1 -OutFile install-mijiactl.ps1
+.\install-mijiactl.ps1
+```
+
+Manual install is also supported: download `mijiactl-windows-x64.exe` from the latest GitHub Release, rename it to `mijiactl.exe`, place it in `~/.mijiactl/bin`, and add that directory to your user `Path`.
 
 ## Runtime Distribution
 

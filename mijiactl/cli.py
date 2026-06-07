@@ -173,7 +173,7 @@ def _setup_payload(auth_path: Any | None, config_path: Any | None) -> dict[str, 
     next_steps.append("mijiactl devices --json")
     return {
         "install": {
-            "recommended": "irm https://raw.githubusercontent.com/stg609/mijia-control-skill/main/scripts/install-mijiactl.ps1 | iex",
+            "recommended": "Invoke-RestMethod https://raw.githubusercontent.com/stg609/mijia-control-skill/master/scripts/install-mijiactl.ps1 | Invoke-Expression",
             "development": "uv tool install \"mijiactl[mijia] @ git+https://github.com/stg609/mijia-control-skill.git\"",
             "local": "uv tool install --editable .[mijia]",
         },

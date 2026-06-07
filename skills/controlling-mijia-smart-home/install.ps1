@@ -19,7 +19,7 @@ if ($UseSourceRuntime) {
   }
   uv tool install "mijiactl[mijia] @ git+https://github.com/$Repo.git"
 } else {
-  $installer = "https://raw.githubusercontent.com/$Repo/main/scripts/install-mijiactl.ps1"
+  $installer = "https://raw.githubusercontent.com/$Repo/master/scripts/install-mijiactl.ps1"
   & ([ScriptBlock]::Create((Invoke-RestMethod -Uri $installer))) -Repo $Repo -InstallDir $InstallDir
 }
 

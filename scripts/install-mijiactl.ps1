@@ -9,15 +9,35 @@ $ErrorActionPreference = "Stop"
 
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 
-$release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest"
+try {
+  $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest"
+} catch {
+  throw @"
+Failed to query the latest GitHub Release for $Repo.
+
+Manual install:
+1. Open https://github.com/$Repo/releases/latest
+2. Download mijiactl-windows-x64.exe
+3. Rename it to mijiactl.exe
+4. Put it in $InstallDir
+5. Add $InstallDir to your user Path
+
+Original error: $($_.Exception.Message)
+"@
+}
+
 $asset = $release.assets | Where-Object { $_.name -eq $AssetName } | Select-Object -First 1
 
 if (-not $asset) {
-  throw "Release asset '$AssetName' was not found in latest release for $Repo."
+  throw "Release asset '$AssetName' was not found. Open https://github.com/$Repo/releases/latest and check the published assets."
 }
 
 $target = Join-Path $InstallDir "mijiactl.exe"
-Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $target
+try {
+  Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $target
+} catch {
+  throw "Failed to download '$AssetName'. Download it manually from https://github.com/$Repo/releases/latest and save it as $target. Original error: $($_.Exception.Message)"
+}
 
 if (-not $NoPathUpdate) {
   $userPath = [Environment]::GetEnvironmentVariable("Path", "User")

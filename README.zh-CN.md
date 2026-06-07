@@ -22,7 +22,7 @@ npx skills add stg609/mijia-control-skill --skill controlling-mijia-smart-home -
 从 GitHub Releases 安装最新 `mijiactl.exe`，然后初始化：
 
 ```powershell
-irm https://raw.githubusercontent.com/stg609/mijia-control-skill/main/scripts/install-mijiactl.ps1 | iex; mijiactl setup; mijiactl login; mijiactl config init
+Invoke-RestMethod https://raw.githubusercontent.com/stg609/mijia-control-skill/master/scripts/install-mijiactl.ps1 | Invoke-Expression; mijiactl setup; mijiactl login; mijiactl config init
 ```
 
 `mijiactl login` 会在终端显示二维码。请使用米家 App 扫码。授权文件保存到 `~/.config/mijiactl/auth.json`；命令输出不会打印 token 值。
@@ -134,7 +134,7 @@ mijiactl config init
 如果你接受远程 PowerShell 脚本，可以使用 bootstrap 脚本同时安装 Skill 和最新 Release 里的 `mijiactl.exe`。不习惯 `irm | iex` 的用户建议先打开脚本内容检查：
 
 ```powershell
-irm https://raw.githubusercontent.com/stg609/mijia-control-skill/main/install.ps1 | iex
+Invoke-RestMethod https://raw.githubusercontent.com/stg609/mijia-control-skill/master/install.ps1 | Invoke-Expression
 ```
 
 从本地 checkout 运行时，可以加 `-Login`：
@@ -144,6 +144,15 @@ irm https://raw.githubusercontent.com/stg609/mijia-control-skill/main/install.ps
 ```
 
 从 bootstrap 脚本安装时，可以用 `-Agents` 覆盖默认全局安装目标列表。只有开发源码安装时才需要 `-UseSourceRuntime`。
+
+如果当前 shell 没有 `irm` alias，请直接使用上面的完整 `Invoke-RestMethod` 写法。如果安全策略不允许管道执行脚本，可以先下载再运行：
+
+```powershell
+Invoke-WebRequest https://raw.githubusercontent.com/stg609/mijia-control-skill/master/scripts/install-mijiactl.ps1 -OutFile install-mijiactl.ps1
+.\install-mijiactl.ps1
+```
+
+也可以手动安装：从最新 GitHub Release 下载 `mijiactl-windows-x64.exe`，重命名为 `mijiactl.exe`，放到 `~/.mijiactl/bin`，并把该目录加入用户 `Path`。
 
 ## Runtime 分发
 
