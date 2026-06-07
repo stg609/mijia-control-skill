@@ -42,7 +42,17 @@ If the user asks to uninstall, remove, clean up, or stop using this Skill/runtim
    - `mijiactl scene list --home-id <home_id>`
    - `mijiactl scene run --id <scene_id> --home-id <home_id> --confirm <token>`
 
-For natural-language device requests, map the user's wording to exactly one device from `devices --json`, then inspect that device's model with `info` before choosing a property or action. If more than one device plausibly matches, show candidates and ask the user to choose. Do not paste the full device or capability JSON to the user unless they explicitly ask for it; summarize only the matched device, candidates, command outcome, and any required confirmation token.
+## Hot Path
+
+For repeated requests under the same local Mijia authorization, prefer the shortest safe command path. Device, home, and scene snapshots are local, auth-scoped, and valid for 3 days unless the user asks to refresh.
+
+- If an earlier turn, previous agent action, or cached result already identified the exact device `did` and the needed property/action, reuse them and run `get`, `set`, or `action` directly.
+- Do not run `mijiactl devices --json` again for the same device unless the user asks to refresh/rescan, the device identity is ambiguous, or the auth-scoped snapshot is older than 3 days.
+- Do not run `mijiactl info --model ... --json` again when the property/action name is already known. `mijiactl get/set/action` resolves cached capabilities internally and fetches capabilities only if the cache is missing.
+- If direct control returns `CAPABILITY_NOT_CACHED`, `ACTION_NOT_FOUND`, or `PROPERTY_NOT_FOUND`, then run `mijiactl info --model <model> --json` or `--refresh --json` as needed.
+- If direct control returns `DEVICE_NOT_FOUND`, run `mijiactl devices --json`; use `--refresh` only when the user asked to refresh or the cached inventory is stale.
+
+For first-time or unknown natural-language device requests, map the user's wording to exactly one device from `devices --json`, then inspect that device's model with `info` before choosing a property or action. If more than one device plausibly matches, show candidates and ask the user to choose. Do not paste the full device or capability JSON to the user unless they explicitly ask for it; summarize only the matched device, candidates, command outcome, and any required confirmation token.
 
 If the user asks to refresh, rescan, rediscover, sync, or update Mijia devices, homes, rooms, or scenes, use explicit refresh commands:
 
@@ -50,7 +60,7 @@ If the user asks to refresh, rescan, rediscover, sync, or update Mijia devices, 
 - `mijiactl homes --refresh --json`
 - `mijiactl scene list --home-id <home_id> --refresh`
 
-Also refresh when the user says a device was renamed, added, removed, moved to another room, or the cached result looks wrong. Normal control commands should not force refresh; `mijiactl` will reuse fresh snapshots and automatically refresh snapshots older than 3 days.
+Also refresh when the user says a device was renamed, added, removed, moved to another room, rescanned/re-authorized Mijia, or the cached result looks wrong. Normal control commands should not force refresh; `mijiactl` will reuse fresh auth-scoped snapshots and automatically refresh snapshots older than 3 days.
 
 For washers and other appliances, do not treat `on=true` as "start". Starting a program requires an MIoT action such as `start-wash`, and usually requires confirmation.
 

@@ -79,7 +79,7 @@ Device, home, and scene snapshots are cached under:
 ~/.config/mijiactl/snapshots/
 ```
 
-Use `--refresh` only when the user asks to rescan/sync, when inventory changed, or when cached results look wrong.
+Snapshots are scoped to the current local Mijia authorization. Use `--refresh` only when the user asks to rescan/sync, when inventory changed, when the user re-authorized Mijia, or when cached results look wrong.
 
 Capabilities are cached under:
 

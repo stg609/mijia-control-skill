@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -48,3 +49,17 @@ def auth_status(path: Path | None = None) -> dict[str, Any]:
         "key_count": len(payload),
         "required_keys": {key: key in payload for key in required},
     }
+
+
+def auth_cache_namespace(path: Path | None = None) -> str:
+    auth_path = path or default_auth_path()
+    if not auth_path.exists():
+        return "default"
+    try:
+        payload = json.loads(auth_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return "default"
+    identity = "|".join(str(payload.get(key) or "") for key in ("userId", "deviceId"))
+    if not identity.strip("|"):
+        return "default"
+    return hashlib.sha256(identity.encode("utf-8")).hexdigest()[:12]

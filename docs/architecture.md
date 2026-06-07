@@ -38,6 +38,10 @@ or:
 
 Agents branch on `ok` and `error.code` instead of parsing prose.
 
+The CLI keeps `MijiaClient` lazy. Cacheable commands such as `devices --json`, `homes --json`, `scene list`, and `info --model` must return from local cache without constructing the real `mijiaAPI` client. Control commands resolve cached device metadata and capabilities before creating the client, so blocked or confirmation-required operations do not pay network initialization cost.
+
+Device, home, and scene snapshots are scoped by a non-secret hash of the local auth identity. As long as the user has not re-authorized Mijia and the snapshot is younger than 3 days, the same computer and any agent using `mijiactl` can reuse the cached inventory without cloud discovery. Re-running `mijiactl login` changes the auth namespace and naturally starts a fresh inventory cache.
+
 ## Runtime Components
 
 ### `MijiaClient`
@@ -82,7 +86,7 @@ mijiactl/snapshots.py
 
 Responsibilities:
 
-- Cache device, home, and scene snapshots under `~/.config/mijiactl/snapshots/`.
+- Cache auth-scoped device, home, and scene snapshots under `~/.config/mijiactl/snapshots/`.
 - Use a default 3-day TTL for low-frequency inventory data.
 - Support explicit refresh through `devices --refresh`, `homes --refresh`, and `scene list --refresh`.
 - Let `get`, `set`, and `action` resolve `did -> model/name/online` from the fresh snapshot instead of rediscovering devices before every control command.

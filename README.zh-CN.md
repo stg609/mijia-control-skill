@@ -47,7 +47,7 @@ PromptScript 不在默认目标列表里，因为当前 `skills` CLI 会返回 `
 mijiactl devices --json
 ```
 
-设备、家庭和场景列表默认缓存 3 天。如果改名、新增、删除设备或调整房间后需要重新发现，可以强制刷新：
+设备、家庭和场景列表默认缓存 3 天，并且按当前本地米家授权隔离。只要 `auth.json` 没有重新生成，同一台电脑上的任何 agent 或 shell 都可以复用缓存。如果改名、新增、删除设备、调整房间或重新授权后需要重新发现，可以强制刷新：
 
 ```powershell
 mijiactl devices --refresh --json
@@ -121,7 +121,7 @@ mijiactl scene list --home-id <home_id> --refresh
 
 带输入参数的 action 需要按 `mijiactl info --model <model> --json` 里 `in` 列表的顺序逐个传 `--arg`。参数值使用和 `set --value` 相同的解析逻辑，`true`、`false`、整数和小数会在调用 MIoT 前自动转换。
 
-`devices`、`homes` 和 `scene list` 会返回很小的 `data.cache` 对象，包含 `hit`、`created_at` 和 `expires_at`。普通控制命令内部也会使用未过期的设备快照，所以 Agent 不需要每次操作前都重新发现设备。
+`devices`、`homes` 和 `scene list` 会返回很小的 `data.cache` 对象，包含 `hit`、`created_at` 和 `expires_at`。普通控制命令内部也会使用未过期且按授权隔离的设备快照，所以 Agent 不需要每次操作前都重新发现设备。
 
 ## 更新
 

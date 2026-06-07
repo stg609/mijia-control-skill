@@ -17,10 +17,12 @@ class SnapshotStore:
         base_dir: Path | None = None,
         ttl_seconds: int = DEFAULT_SNAPSHOT_TTL_SECONDS,
         now: Callable[[], float] | None = None,
+        namespace: str | None = None,
     ):
         self.base_dir = base_dir or default_data_dir() / "snapshots"
         self.ttl_seconds = ttl_seconds
         self.now = now or time.time
+        self.namespace = namespace
 
     def ensure(self, key: str, loader: Callable[[], Any], refresh: bool = False) -> dict[str, Any]:
         cached = self.read(key, refresh=refresh)
@@ -74,5 +76,6 @@ class SnapshotStore:
         }
 
     def _path(self, key: str) -> Path:
-        safe_key = re.sub(r"[^A-Za-z0-9_.-]+", "_", key).strip("_") or "snapshot"
+        namespaced_key = f"{self.namespace}_{key}" if self.namespace else key
+        safe_key = re.sub(r"[^A-Za-z0-9_.-]+", "_", namespaced_key).strip("_") or "snapshot"
         return self.base_dir / f"{safe_key}.json"

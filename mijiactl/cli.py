@@ -3,10 +3,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from typing import Any
+from typing import Any, Callable
 
 from . import __version__
-from .auth import auth_status
+from .auth import auth_cache_namespace, auth_status
 from .capabilities import CapabilityStore
 from .client import Device, MijiaClient, login_auth
 from .config import default_config_dir, default_config_path, load_config, write_default_config
@@ -90,8 +90,15 @@ def run_cli(
     config_path: Any | None = None,
 ) -> str:
     store = store or CapabilityStore()
-    snapshots = snapshots or SnapshotStore()
+    snapshots = snapshots or SnapshotStore(namespace=auth_cache_namespace(auth_path))
     policy = policy or CommandPolicy(load_config(config_path))
+    client_instance = client
+
+    def get_client() -> MijiaClient:
+        nonlocal client_instance
+        if client_instance is None:
+            client_instance = MijiaClient(auth_path=auth_path)
+        return client_instance
 
     try:
         args = build_parser().parse_args(argv)
@@ -108,43 +115,43 @@ def run_cli(
             return success({"config": {"path": str(path), "created_or_exists": True}})
         if args.command == "config" and args.config_command == "show":
             return success({"config": {"path": str(config_path or default_config_path()), "data": load_config(config_path)}})
-        client = client or MijiaClient(auth_path=auth_path)
         if args.command == "devices":
-            snapshot = _device_snapshot(client, snapshots, refresh=args.refresh)
+            snapshot = _device_snapshot(get_client, snapshots, refresh=args.refresh)
             return success({"devices": snapshot["data"], "cache": snapshot["cache"]})
         if args.command == "homes":
-            snapshot = snapshots.ensure("homes", client.homes, refresh=args.refresh)
+            snapshot = snapshots.ensure("homes", lambda: get_client().homes(), refresh=args.refresh)
             return success({"homes": snapshot["data"], "cache": snapshot["cache"]})
         if args.command == "info":
-            return success(store.ensure_model(args.model, client, refresh=args.refresh))
+            if not args.refresh:
+                cached = store.get_model(args.model)
+                if cached is not None:
+                    return success(cached)
+            return success(store.ensure_model(args.model, get_client(), refresh=args.refresh))
         if args.command == "get":
-            device = _device_by_did(client, snapshots, args.did)
+            device = _device_by_did(get_client, snapshots, args.did)
             policy.ensure_device_can_execute(device)
-            store.ensure_model(device.model, client)
-            prop = store.resolve_property(device.model, args.prop)
-            return success({"value": client.get_property(device.did, prop["siid"], prop["piid"])})
+            prop = _resolve_property(store, get_client, device.model, args.prop)
+            return success({"value": get_client().get_property(device.did, prop["siid"], prop["piid"])})
         if args.command == "set":
-            device = _device_by_did(client, snapshots, args.did)
+            device = _device_by_did(get_client, snapshots, args.did)
             policy.ensure_device_can_execute(device)
             policy.ensure_action_allowed(device, f"set-{args.prop}", args.confirm)
-            store.ensure_model(device.model, client)
-            prop = store.resolve_property(device.model, args.prop)
-            result = client.set_property(device.did, prop["siid"], prop["piid"], parse_value(args.value))
+            prop = _resolve_property(store, get_client, device.model, args.prop)
+            result = get_client().set_property(device.did, prop["siid"], prop["piid"], parse_value(args.value))
             return success({"result": result})
         if args.command == "action":
-            device = _device_by_did(client, snapshots, args.did)
+            device = _device_by_did(get_client, snapshots, args.did)
             policy.ensure_device_can_execute(device)
             policy.ensure_action_allowed(device, args.action, args.confirm)
-            store.ensure_model(device.model, client)
-            action = store.resolve_action(device.model, args.action)
-            result = client.run_action(device.did, action["siid"], action["aiid"], [parse_value(value) for value in args.arg])
+            action = _resolve_action(store, get_client, device.model, args.action)
+            result = get_client().run_action(device.did, action["siid"], action["aiid"], [parse_value(value) for value in args.arg])
             return success({"result": result})
         if args.command == "scene" and args.scene_command == "list":
-            snapshot = snapshots.ensure(_scene_snapshot_key(args.home_id), lambda: client.scenes(args.home_id), refresh=args.refresh)
+            snapshot = snapshots.ensure(_scene_snapshot_key(args.home_id), lambda: get_client().scenes(args.home_id), refresh=args.refresh)
             return success({"scenes": snapshot["data"], "cache": snapshot["cache"]})
         if args.command == "scene" and args.scene_command == "run":
             policy.ensure_scene_allowed(args.id, args.home_id, args.confirm)
-            return success({"result": client.run_scene(args.id, args.home_id)})
+            return success({"result": get_client().run_scene(args.id, args.home_id)})
         raise MijiaError("UNKNOWN_COMMAND", "Unknown command.")
     except MijiaError as exc:
         return failure(exc)
@@ -217,17 +224,37 @@ def _config_path(config_path: Any | None):
     return config_path or default_config_path()
 
 
-def _device_snapshot(client: MijiaClient, snapshots: SnapshotStore, refresh: bool = False) -> dict[str, Any]:
-    return snapshots.ensure("devices", lambda: [device.to_dict() for device in client.devices()], refresh=refresh)
+def _device_snapshot(get_client: Callable[[], MijiaClient], snapshots: SnapshotStore, refresh: bool = False) -> dict[str, Any]:
+    return snapshots.ensure("devices", lambda: [device.to_dict() for device in get_client().devices()], refresh=refresh)
 
 
-def _device_by_did(client: MijiaClient, snapshots: SnapshotStore, did: str) -> Device:
-    snapshot = _device_snapshot(client, snapshots)
+def _device_by_did(get_client: Callable[[], MijiaClient], snapshots: SnapshotStore, did: str) -> Device:
+    snapshot = _device_snapshot(get_client, snapshots)
     for item in snapshot["data"]:
         device = Device.from_dict(item)
         if device.did == did:
             return device
     raise MijiaError("DEVICE_NOT_FOUND", f"No device with did '{did}'. Run `mijiactl devices --refresh --json` if the device list changed.")
+
+
+def _resolve_property(store: CapabilityStore, get_client: Callable[[], MijiaClient], model: str, prop_name: str) -> dict[str, Any]:
+    try:
+        return store.resolve_property(model, prop_name)
+    except MijiaError as exc:
+        if exc.code != "CAPABILITY_NOT_CACHED":
+            raise
+        store.ensure_model(model, get_client())
+        return store.resolve_property(model, prop_name)
+
+
+def _resolve_action(store: CapabilityStore, get_client: Callable[[], MijiaClient], model: str, action_name: str) -> dict[str, Any]:
+    try:
+        return store.resolve_action(model, action_name)
+    except MijiaError as exc:
+        if exc.code != "CAPABILITY_NOT_CACHED":
+            raise
+        store.ensure_model(model, get_client())
+        return store.resolve_action(model, action_name)
 
 
 def _scene_snapshot_key(home_id: str | None) -> str:

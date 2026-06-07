@@ -47,7 +47,7 @@ List devices for an agent or script:
 mijiactl devices --json
 ```
 
-Device, home, and scene lists are cached for 3 days by default. Force a rediscovery after renaming, adding, removing, or moving devices:
+Device, home, and scene lists are cached for 3 days by default and scoped to the current local Mijia authorization. Any agent or shell on the same computer can reuse the cache as long as `auth.json` has not been regenerated. Force a rediscovery after renaming, adding, removing, moving devices, or re-authorizing Mijia:
 
 ```powershell
 mijiactl devices --refresh --json
@@ -121,7 +121,7 @@ mijiactl scene list --home-id <home_id> --refresh
 
 Use one `--arg` per action input in the same order shown by `mijiactl info --model <model> --json`. Values use the same parser as `set --value`, so `true`, `false`, integers, and floats are converted before calling MIoT.
 
-`devices`, `homes`, and `scene list` include a small `data.cache` object with `hit`, `created_at`, and `expires_at`. Normal control commands also use the fresh device snapshot internally, so agents do not need to rediscover devices before every operation.
+`devices`, `homes`, and `scene list` include a small `data.cache` object with `hit`, `created_at`, and `expires_at`. Normal control commands also use the fresh auth-scoped device snapshot internally, so agents do not need to rediscover devices before every operation.
 
 ## Updating
 

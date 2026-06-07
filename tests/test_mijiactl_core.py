@@ -5,6 +5,7 @@ import types
 import unittest
 from pathlib import Path
 
+from mijiactl.auth import auth_cache_namespace
 from mijiactl.capabilities import CapabilityStore
 from mijiactl.client import Device, FakeMijiaApi, MijiaClient, login_auth
 from mijiactl.cli import run_cli
@@ -22,6 +23,31 @@ class ValueParsingTests(unittest.TestCase):
         self.assertEqual(parse_value("26"), 26)
         self.assertEqual(parse_value("26.5"), 26.5)
         self.assertEqual(parse_value("quick wash"), "quick wash")
+
+
+class AuthCacheNamespaceTests(unittest.TestCase):
+    def test_auth_cache_namespace_is_stable_for_same_local_authorization(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            auth_file = Path(tmp) / "auth.json"
+            auth_file.write_text('{"userId":"123","deviceId":"device-a","serviceToken":"secret-token"}', encoding="utf-8")
+
+            first = auth_cache_namespace(auth_file)
+            second = auth_cache_namespace(auth_file)
+
+            self.assertEqual(first, second)
+            self.assertNotIn("123", first)
+            self.assertNotIn("device-a", first)
+
+    def test_auth_cache_namespace_changes_after_rescan_device_id_changes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            auth_file = Path(tmp) / "auth.json"
+            auth_file.write_text('{"userId":"123","deviceId":"device-a"}', encoding="utf-8")
+            first = auth_cache_namespace(auth_file)
+
+            auth_file.write_text('{"userId":"123","deviceId":"device-b"}', encoding="utf-8")
+            second = auth_cache_namespace(auth_file)
+
+            self.assertNotEqual(first, second)
 
 
 class CapabilityStoreTests(unittest.TestCase):
@@ -89,6 +115,17 @@ class CapabilityStoreTests(unittest.TestCase):
                 store.resolve_action("washer.model", "start-wash")
 
             self.assertEqual(raised.exception.code, "ACTION_NOT_FOUND")
+
+
+class SnapshotStoreTests(unittest.TestCase):
+    def test_snapshot_files_are_scoped_by_namespace(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = SnapshotStore(Path(tmp), namespace="authscope")
+
+            store.write("devices", [{"did": "1"}])
+
+            self.assertTrue((Path(tmp) / "authscope_devices.json").exists())
+            self.assertIsNone(SnapshotStore(Path(tmp), namespace="other").read("devices"))
 
 
 class PolicyTests(unittest.TestCase):
@@ -407,6 +444,63 @@ class CliTests(unittest.TestCase):
             self.assertEqual(api.device_calls, 1)
             self.assertTrue(payload["data"]["cache"]["hit"])
 
+    def test_cached_devices_do_not_require_real_client_initialization(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            snapshots = SnapshotStore(Path(tmp), now=lambda: 1000)
+            snapshots.write(
+                "devices",
+                [{"did": "1", "name": "Cached Speaker", "model": "speaker.model", "online": True, "room": "Study"}],
+            )
+
+            output = run_cli(["devices", "--json"], auth_path=Path(tmp) / "missing-auth.json", snapshots=snapshots)
+
+            payload = json.loads(output)
+            self.assertTrue(payload["ok"])
+            self.assertTrue(payload["data"]["cache"]["hit"])
+            self.assertEqual(payload["data"]["devices"][0]["name"], "Cached Speaker")
+
+    def test_cached_info_does_not_require_real_client_initialization(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = CapabilityStore(Path(tmp) / "capabilities")
+            store.write_model(
+                "speaker.model",
+                {
+                    "model": "speaker.model",
+                    "properties": [],
+                    "actions": [{"name": "play-favorites", "siid": 5, "aiid": 2}],
+                },
+            )
+
+            output = run_cli(
+                ["info", "--model", "speaker.model", "--json"],
+                auth_path=Path(tmp) / "missing-auth.json",
+                store=store,
+                snapshots=SnapshotStore(Path(tmp) / "snapshots"),
+            )
+
+            payload = json.loads(output)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["data"]["actions"][0]["name"], "play-favorites")
+
+    def test_confirmation_required_short_circuits_before_real_client_initialization(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            snapshots = SnapshotStore(Path(tmp) / "snapshots", now=lambda: 1000)
+            snapshots.write(
+                "devices",
+                [{"did": "1", "name": "Washer", "model": "washer.model", "online": True, "room": "Balcony"}],
+            )
+
+            output = run_cli(
+                ["action", "--did", "1", "--action", "start-wash"],
+                auth_path=Path(tmp) / "missing-auth.json",
+                snapshots=snapshots,
+                store=CapabilityStore(Path(tmp) / "capabilities"),
+            )
+
+            payload = json.loads(output)
+            self.assertFalse(payload["ok"])
+            self.assertEqual(payload["error"]["code"], "CONFIRMATION_REQUIRED")
+
     def test_devices_refresh_bypasses_snapshot(self):
         class CountingApi(FakeMijiaApi):
             def __init__(self):
@@ -487,6 +581,54 @@ class CliTests(unittest.TestCase):
             payload = json.loads(output)
             self.assertTrue(payload["ok"])
             self.assertEqual(api.device_calls, 1)
+
+    def test_action_with_cached_capabilities_does_not_refetch_device_info(self):
+        class CountingInfoApi(FakeMijiaApi):
+            def __init__(self):
+                super().__init__(
+                    devices=[{"did": "1", "name": "Speaker", "model": "speaker.model", "isOnline": True}],
+                    device_infos={
+                        "speaker.model": {
+                            "model": "speaker.model",
+                            "properties": [],
+                            "actions": [{"name": "play-favorites", "siid": 5, "aiid": 2}],
+                        }
+                    },
+                )
+                self.info_calls = 0
+
+            def get_device_info(self, model):
+                self.info_calls += 1
+                return super().get_device_info(model)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            api = CountingInfoApi()
+            store = CapabilityStore(Path(tmp) / "capabilities")
+            store.write_model(
+                "speaker.model",
+                {
+                    "model": "speaker.model",
+                    "properties": [],
+                    "actions": [{"name": "play-favorites", "siid": 5, "aiid": 2}],
+                },
+            )
+            snapshots = SnapshotStore(Path(tmp) / "snapshots", now=lambda: 1000)
+            snapshots.write(
+                "devices",
+                [{"did": "1", "name": "Speaker", "model": "speaker.model", "online": True, "room": "Study"}],
+            )
+
+            output = run_cli(
+                ["action", "--did", "1", "--action", "play-favorites"],
+                client=MijiaClient(api),
+                store=store,
+                snapshots=snapshots,
+            )
+
+            payload = json.loads(output)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(api.info_calls, 0)
+            self.assertEqual(api.actions_run, [{"did": "1", "siid": 5, "aiid": 2}])
 
     def test_homes_and_scene_list_use_snapshots(self):
         class CountingApi(FakeMijiaApi):
