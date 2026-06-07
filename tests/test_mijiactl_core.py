@@ -127,6 +127,29 @@ class SnapshotStoreTests(unittest.TestCase):
             self.assertTrue((Path(tmp) / "authscope_devices.json").exists())
             self.assertIsNone(SnapshotStore(Path(tmp), namespace="other").read("devices"))
 
+    def test_namespaced_snapshot_can_migrate_fresh_legacy_snapshot(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            legacy = SnapshotStore(Path(tmp), now=lambda: 1000)
+            legacy.write("devices", [{"did": "1", "name": "Speaker"}])
+
+            namespaced = SnapshotStore(Path(tmp), namespace="authscope", now=lambda: 1001)
+            payload = namespaced.read("devices")
+
+            self.assertIsNotNone(payload)
+            self.assertEqual(payload["data"][0]["name"], "Speaker")
+            self.assertTrue(payload["cache"]["hit"])
+            self.assertTrue((Path(tmp) / "authscope_devices.json").exists())
+
+    def test_namespaced_snapshot_does_not_migrate_stale_legacy_snapshot(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            legacy = SnapshotStore(Path(tmp), ttl_seconds=10, now=lambda: 1000)
+            legacy.write("devices", [{"did": "1", "name": "Speaker"}])
+
+            namespaced = SnapshotStore(Path(tmp), ttl_seconds=10, namespace="authscope", now=lambda: 1011)
+
+            self.assertIsNone(namespaced.read("devices"))
+            self.assertFalse((Path(tmp) / "authscope_devices.json").exists())
+
 
 class PolicyTests(unittest.TestCase):
     def test_offline_device_is_rejected(self):

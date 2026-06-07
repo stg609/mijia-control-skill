@@ -35,7 +35,12 @@ class SnapshotStore:
             return None
         path = self._path(key)
         if not path.exists():
-            return None
+            legacy = self._read_legacy(key)
+            if legacy is None:
+                return None
+            self._write_payload(path, legacy)
+            legacy["cache"] = self._cache_info(key, legacy, hit=True)
+            return legacy
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
@@ -79,3 +84,25 @@ class SnapshotStore:
         namespaced_key = f"{self.namespace}_{key}" if self.namespace else key
         safe_key = re.sub(r"[^A-Za-z0-9_.-]+", "_", namespaced_key).strip("_") or "snapshot"
         return self.base_dir / f"{safe_key}.json"
+
+    def _legacy_path(self, key: str) -> Path:
+        safe_key = re.sub(r"[^A-Za-z0-9_.-]+", "_", key).strip("_") or "snapshot"
+        return self.base_dir / f"{safe_key}.json"
+
+    def _read_legacy(self, key: str) -> dict[str, Any] | None:
+        if not self.namespace:
+            return None
+        path = self._legacy_path(key)
+        if not path.exists():
+            return None
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        if self._is_stale(payload):
+            return None
+        return payload
+
+    def _write_payload(self, path: Path, payload: dict[str, Any]) -> None:
+        self.base_dir.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({key: value for key, value in payload.items() if key != "cache"}, ensure_ascii=False, indent=2), encoding="utf-8")
