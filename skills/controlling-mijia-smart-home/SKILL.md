@@ -35,12 +35,15 @@ Do not read or generate auth files manually. `mijiactl login` is the only suppor
    - `mijiactl get --did <did> --prop <name>`
    - `mijiactl set --did <did> --prop <name> --value <value>`
    - `mijiactl action --did <did> --action <name>`
+   - `mijiactl action --did <did> --action <name> --arg <value>` for MIoT actions with input parameters; repeat `--arg` in the same order shown by `info`
    - `mijiactl scene list --home-id <home_id>`
    - `mijiactl scene run --id <scene_id> --home-id <home_id> --confirm <token>`
 
 For natural-language device requests, map the user's wording to exactly one device from `devices --json`, then inspect that device's model with `info` before choosing a property or action. If more than one device plausibly matches, show candidates and ask the user to choose.
 
 For washers and other appliances, do not treat `on=true` as "start". Starting a program requires an MIoT action such as `start-wash`, and usually requires confirmation.
+
+For speakers and other devices with parameterized actions, inspect the action's `in` list from `info` and pass each value with `--arg`. Example: if `play-text` has `in: [1]`, use `mijiactl action --did <did> --action play-text --arg "text to speak"`.
 
 All command output is JSON:
 

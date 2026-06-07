@@ -80,8 +80,10 @@ class MijiaClient:
             return self.api.set_devices_prop([payload])
         return self._call_first(("set_prop", "set_property"), payload)
 
-    def run_action(self, did: str, siid: int, aiid: int) -> Any:
+    def run_action(self, did: str, siid: int, aiid: int, args: list[Any] | None = None) -> Any:
         payload = {"did": did, "siid": siid, "aiid": aiid}
+        if args:
+            payload["in"] = args
         return self._call_first(("run_action",), payload)
 
     def scenes(self, home_id: str | None = None) -> list[dict[str, Any]]:

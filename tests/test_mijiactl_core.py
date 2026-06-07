@@ -328,6 +328,29 @@ class CliTests(unittest.TestCase):
             self.assertTrue(payload["ok"])
             self.assertEqual(api.actions_run, [{"did": "1", "siid": 2, "aiid": 2}])
 
+    def test_action_passes_args_as_miot_action_input(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            api = FakeMijiaApi(
+                devices=[{"did": "1", "name": "Speaker", "model": "speaker.model", "isOnline": True}],
+                device_infos={
+                    "speaker.model": {
+                        "model": "speaker.model",
+                        "properties": [],
+                        "actions": [{"name": "play-text", "siid": 5, "aiid": 1}],
+                    }
+                },
+            )
+
+            output = run_cli(
+                ["action", "--did", "1", "--action", "play-text", "--arg", "我是 codex"],
+                client=MijiaClient(api),
+                store=CapabilityStore(Path(tmp)),
+            )
+
+            payload = json.loads(output)
+            self.assertTrue(payload["ok"])
+            self.assertEqual(api.actions_run, [{"did": "1", "siid": 5, "aiid": 1, "in": ["我是 codex"]}])
+
     def test_devices_command_returns_agent_consumable_json(self):
         api = FakeMijiaApi(
             devices=[{"did": "1", "name": "Lamp", "model": "lamp.model", "isOnline": True, "room": "Bedroom"}]

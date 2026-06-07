@@ -65,6 +65,7 @@ mijiactl info --model <model> --refresh --json
 mijiactl get --did <did> --prop <name>
 mijiactl set --did <did> --prop <name> --value <value>
 mijiactl action --did <did> --action <name>
+mijiactl action --did <did> --action <name> --arg <value>
 mijiactl scene list --home-id <home_id>
 mijiactl scene run --id <scene_id> --home-id <home_id>
 ```
@@ -76,6 +77,8 @@ Capabilities are cached under:
 ```
 
 Use `--refresh` when an action or property is missing or after firmware/app updates.
+
+For MIoT actions with inputs, pass one `--arg` per input in the order listed by `mijiactl info --model <model> --json`. Values are parsed like property values, so booleans and numbers can be passed as strings and converted by the CLI.
 
 ## Error Handling
 

@@ -61,6 +61,13 @@ mijiactl info --model <washer_model> --json
 mijiactl action --did <did> --action start-wash --confirm start-wash
 ```
 
+Run a MIoT action with input parameters, such as asking a XiaoAI speaker to speak text:
+
+```powershell
+mijiactl info --model xiaomi.wifispeaker.lx06 --json
+mijiactl action --did <did> --action play-text --arg "I am codex"
+```
+
 List and run a scene. Scene runs require confirmation by default:
 
 ```powershell
@@ -75,7 +82,7 @@ mijiactl scene run --id <scene_id> --home-id <home_id> --confirm scene:<scene_id
 - Home, room, scene, and device listing.
 - MIoT capability lookup with cache and JSON fallback.
 - Property get/set.
-- Action execution through `run_action`.
+- Action execution through `run_action`, including ordered MIoT action inputs with repeated `--arg`.
 - Scene listing and confirmed scene execution.
 - User safety policy with disabled devices/actions and confirmation rules.
 
@@ -92,8 +99,11 @@ mijiactl info --model <model> --json
 mijiactl get --did <did> --prop <name>
 mijiactl set --did <did> --prop <name> --value <value>
 mijiactl action --did <did> --action <name>
+mijiactl action --did <did> --action <name> --arg <value>
 mijiactl scene list --home-id <home_id>
 ```
+
+Use one `--arg` per action input in the same order shown by `mijiactl info --model <model> --json`. Values use the same parser as `set --value`, so `true`, `false`, integers, and floats are converted before calling MIoT.
 
 Every command returns:
 
@@ -206,7 +216,7 @@ uv run --no-project --with pyyaml python <path-to-quick_validate.py> skills/cont
 
 ## Maintainer Evals
 
-Regression prompts for agents are in `evals/evals.json`. They cover first-time setup, device listing, safe light control, high-risk confirmation, and washer action behavior.
+Regression prompts for agents are in `evals/evals.json`. They cover first-time setup, device listing, safe light control, high-risk confirmation, washer action behavior, and parameterized speaker TTS actions.
 
 ## Maintainer Notes
 

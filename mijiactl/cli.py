@@ -59,6 +59,7 @@ def build_parser() -> argparse.ArgumentParser:
     action = sub.add_parser("action")
     action.add_argument("--did", required=True)
     action.add_argument("--action", required=True)
+    action.add_argument("--arg", action="append", default=[])
     action.add_argument("--confirm")
 
     scene = sub.add_parser("scene")
@@ -123,7 +124,7 @@ def run_cli(
             policy.ensure_action_allowed(device, args.action, args.confirm)
             store.ensure_model(device.model, client)
             action = store.resolve_action(device.model, args.action)
-            result = client.run_action(device.did, action["siid"], action["aiid"])
+            result = client.run_action(device.did, action["siid"], action["aiid"], [parse_value(value) for value in args.arg])
             return success({"result": result})
         if args.command == "scene" and args.scene_command == "list":
             return success({"scenes": client.scenes(args.home_id)})

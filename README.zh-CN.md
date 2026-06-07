@@ -61,6 +61,13 @@ mijiactl info --model <washer_model> --json
 mijiactl action --did <did> --action start-wash --confirm start-wash
 ```
 
+执行带输入参数的 MIoT action，例如让小爱音箱朗读文本：
+
+```powershell
+mijiactl info --model xiaomi.wifispeaker.lx06 --json
+mijiactl action --did <did> --action play-text --arg "我是 codex"
+```
+
 列出并执行场景。场景执行默认需要确认：
 
 ```powershell
@@ -75,7 +82,7 @@ mijiactl scene run --id <scene_id> --home-id <home_id> --confirm scene:<scene_id
 - 家庭、房间、场景和设备列表。
 - MIoT 能力查询、缓存和 JSON fallback。
 - 属性读取和设置。
-- 通过 `run_action` 执行 MIoT action。
+- 通过 `run_action` 执行 MIoT action，包括用可重复的 `--arg` 按顺序传入 MIoT action 参数。
 - 场景列表和带确认的场景执行。
 - 用户安全策略：禁用设备、禁用动作、需要确认的操作。
 
@@ -92,8 +99,11 @@ mijiactl info --model <model> --json
 mijiactl get --did <did> --prop <name>
 mijiactl set --did <did> --prop <name> --value <value>
 mijiactl action --did <did> --action <name>
+mijiactl action --did <did> --action <name> --arg <value>
 mijiactl scene list --home-id <home_id>
 ```
+
+带输入参数的 action 需要按 `mijiactl info --model <model> --json` 里 `in` 列表的顺序逐个传 `--arg`。参数值使用和 `set --value` 相同的解析逻辑，`true`、`false`、整数和小数会在调用 MIoT 前自动转换。
 
 所有命令都返回：
 
@@ -206,7 +216,7 @@ uv run --no-project --with pyyaml python <path-to-quick_validate.py> skills/cont
 
 ## 维护者 Eval
 
-Agent 回归 prompt 放在 `evals/evals.json`，覆盖首次安装、列设备、安全开灯、高风险确认和洗衣机 action 行为。
+Agent 回归 prompt 放在 `evals/evals.json`，覆盖首次安装、列设备、安全开灯、高风险确认、洗衣机 action 行为，以及带参数的小爱音箱 TTS action。
 
 ## 维护说明
 
